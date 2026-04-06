@@ -1,0 +1,262 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+==========================================================================
+【AI HANDOVER NOTE】
+1. DESIGN PHILOSOPHY:
+   - Primary concept: Financial Precision meets Arabic Professionalism
+   - Visual style: Dark-first corporate dashboard with data-driven clarity
+   - Rationale: This is a salary calculation tool requiring trust, accuracy, and professional gravitas. The deep navy foundation conveys financial seriousness while maintaining readability for extended daily use. The design prioritizes information hierarchy and numerical clarity over decorative elements.
+   - Mobile-first RTL optimization: All spacing, touch targets, and navigation patterns designed for Arabic right-to-left flow with thumb-zone accessibility.
+
+2. TYPOGRAPHY:
+   - Sans choice: IBM Plex Sans Arabic provides exceptional Arabic glyph quality with professional weight distribution (400-700). Its geometric structure ensures numerical clarity in salary calculations while maintaining cultural authenticity for Arabic text. The font's engineered spacing prevents crowding in dense data tables.
+   - Mono usage: IBM Plex Mono for all numerical displays (salaries, hours, calculations) and timestamps. Ensures perfect alignment in tabular data and reinforces precision in financial contexts.
+
+3. COLOR SYSTEM:
+   - Brand foundation: Deep navy (H=240°) as primary establishes corporate trust and financial authority
+   - Semantic mapping: --brand flows into --primary for CTAs and active states, --ring for focus indicators
+   - Status colors follow universal financial conventions:
+     * Success (H=150°): Present days, positive calculations, salary additions
+     * Destructive (H=10°): Absences, deductions, negative adjustments  
+     * Warning (H=45°): Late arrivals, pending reviews, overtime alerts
+     * Chart-1 (H=210° blue): Overtime hours visualization
+   - Accent (H=160° teal): Interactive elements, links, secondary actions - provides energetic contrast against navy without competing with status colors
+   - Dark mode optimization: Background at L=0.12 (deep charcoal-navy) ensures OLED efficiency and reduces eye strain during evening salary reviews. Foreground at L=0.92 maintains crisp legibility for Arabic diacritics.
+
+4. USAGE GUIDE:
+   - Layout: Mobile-first full-width dashboard with bottom navigation (RTL-aware). Card-based modular surfaces for daily entries, salary breakdowns, and historical logs.
+   - Recommended effects: Subtle elevation shadows on cards (avoid heavy glassmorphism to maintain data readability). Use border-accent for active input fields and rim-light effect on primary buttons.
+   - Data visualization: Chart colors (chart-1 through chart-5) calibrated for colorblind accessibility in salary comparison graphs.
+   - RTL considerations: All directional utilities must flip (mr becomes ml, etc.). Ensure numeric displays remain LTR within RTL context.
+   - Touch targets: Minimum 44px for all interactive elements (edit, delete, date pickers) per mobile accessibility standards.
+==========================================================================
+*/
+
+:root {
+  /* Typography */
+  --font-sans: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+  
+  /* Radius */
+  --radius: 0.5rem;
+
+  /* Core UI Tokens */
+  --background: oklch(0.98 0.005 240);
+  --foreground: oklch(0.15 0.02 240);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.02 240);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.02 240);
+  --primary: oklch(0.35 0.12 240);
+  --primary-foreground: oklch(0.98 0.005 240);
+  --secondary: oklch(0.92 0.01 240);
+  --secondary-foreground: oklch(0.25 0.02 240);
+  --muted: oklch(0.94 0.008 240);
+  --muted-foreground: oklch(0.48 0.015 240);
+  --accent: oklch(0.55 0.14 160);
+  --accent-foreground: oklch(0.98 0.005 160);
+  --destructive: oklch(0.55 0.22 10);
+  --destructive-foreground: oklch(0.98 0.005 10);
+  --border: oklch(0.88 0.01 240);
+  --input: oklch(0.88 0.01 240);
+  --ring: oklch(0.35 0.12 240);
+  
+  /* Chart Tokens */
+  --chart-1: oklch(0.50 0.16 210);
+  --chart-2: oklch(0.60 0.18 150);
+  --chart-3: oklch(0.58 0.20 45);
+  --chart-4: oklch(0.52 0.20 10);
+  --chart-5: oklch(0.55 0.14 280);
+  
+  /* Semantic Status Colors */
+  --success: oklch(0.55 0.20 150);
+  --success-foreground: oklch(0.98 0.005 150);
+  --warning: oklch(0.58 0.22 45);
+  --warning-foreground: oklch(0.15 0.02 45);
+  --info: oklch(0.50 0.16 210);
+  --info-foreground: oklch(0.98 0.005 210);
+
+  /* Sidebar Tokens */
+  --sidebar: oklch(0.96 0.008 240);
+  --sidebar-foreground: oklch(0.25 0.02 240);
+  --sidebar-primary: oklch(0.35 0.12 240);
+  --sidebar-primary-foreground: oklch(0.98 0.005 240);
+  --sidebar-accent: oklch(0.55 0.14 160);
+  --sidebar-accent-foreground: oklch(0.98 0.005 160);
+  --sidebar-border: oklch(0.88 0.01 240);
+  --sidebar-ring: oklch(0.35 0.12 240);
+}
+
+.dark {
+  --background: oklch(0.12 0.025 240);
+  --foreground: oklch(0.92 0.01 240);
+  --card: oklch(0.16 0.028 240);
+  --card-foreground: oklch(0.92 0.01 240);
+  --popover: oklch(0.14 0.026 240);
+  --popover-foreground: oklch(0.92 0.01 240);
+  --primary: oklch(0.55 0.18 240);
+  --primary-foreground: oklch(0.98 0.005 240);
+  --secondary: oklch(0.22 0.03 240);
+  --secondary-foreground: oklch(0.88 0.01 240);
+  --muted: oklch(0.20 0.028 240);
+  --muted-foreground: oklch(0.62 0.015 240);
+  --accent: oklch(0.65 0.18 160);
+  --accent-foreground: oklch(0.12 0.025 160);
+  --destructive: oklch(0.60 0.25 10);
+  --destructive-foreground: oklch(0.98 0.005 10);
+  --border: oklch(0.28 0.032 240);
+  --input: oklch(0.28 0.032 240);
+  --ring: oklch(0.55 0.18 240);
+  
+  /* Chart Tokens */
+  --chart-1: oklch(0.62 0.20 210);
+  --chart-2: oklch(0.68 0.22 150);
+  --chart-3: oklch(0.70 0.24 45);
+  --chart-4: oklch(0.65 0.25 10);
+  --chart-5: oklch(0.68 0.18 280);
+  
+  /* Semantic Status Colors - Dark Mode */
+  --success: oklch(0.68 0.22 150);
+  --success-foreground: oklch(0.12 0.025 150);
+  --warning: oklch(0.72 0.22 45);
+  --warning-foreground: oklch(0.12 0.025 45);
+  --info: oklch(0.62 0.20 210);
+  --info-foreground: oklch(0.12 0.025 210);
+
+  /* Sidebar Tokens */
+  --sidebar: oklch(0.10 0.022 240);
+  --sidebar-foreground: oklch(0.88 0.01 240);
+  --sidebar-primary: oklch(0.55 0.18 240);
+  --sidebar-primary-foreground: oklch(0.98 0.005 240);
+  --sidebar-accent: oklch(0.65 0.18 160);
+  --sidebar-accent-foreground: oklch(0.12 0.025 160);
+  --sidebar-border: oklch(0.24 0.03 240);
+  --sidebar-ring: oklch(0.55 0.18 240);
+}
+
+@theme inline {
+  /* Shadcn Core Mapping */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Charts Mapping */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Status Colors Mapping */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  /* Sidebar Mapping */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Typography */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* Radius */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply scroll-smooth antialiased;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans min-h-screen;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  code, pre {
+    @apply font-mono;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40;
+  }
+}
+
+/* Utility: hide scrollbar */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* no-scrollbar */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* safe area */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* RTL helpers */
+.rtl { direction: rtl; }

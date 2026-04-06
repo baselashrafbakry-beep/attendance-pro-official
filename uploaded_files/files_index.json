@@ -1,0 +1,41 @@
+{
+  "documents": [],
+  "tables_parsed": [],
+  "tables_source_info": [],
+  "images": [
+    {
+      "original_name": "Screenshot9282",
+      "file_name": "Screenshot9282.png",
+      "file_path": "/workspace/salary_tracker_v4_platinum/public/images/Screenshot9282.png",
+      "rel_path": "images/Screenshot9282.png",
+      "file_type": "png",
+      "category": "images"
+    },
+    {
+      "original_name": "Screenshot3834",
+      "file_name": "Screenshot3834.png",
+      "file_path": "/workspace/salary_tracker_v4_platinum/public/images/Screenshot3834.png",
+      "rel_path": "images/Screenshot3834.png",
+      "file_type": "png",
+      "category": "images"
+    },
+    {
+      "original_name": "Screenshot5103",
+      "file_name": "Screenshot5103.png",
+      "file_path": "/workspace/salary_tracker_v4_platinum/public/images/Screenshot5103.png",
+      "rel_path": "images/Screenshot5103.png",
+      "file_type": "png",
+      "category": "images"
+    }
+  ],
+  "summary": {
+    "total_files": 3,
+    "by_category": {
+      "documents": 0,
+      "tables_parsed": 0,
+      "tables_source_info": 0,
+      "images": 3
+    },
+    "processing_time": null
+  }
+}

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ar" class="dark" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <!-- FIX: استبدال apple-mobile-web-app-capable بالصيغة الحديثة -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="متتبع الراتب" />
+    <title>متتبع الحضور والراتب - برو</title>
+    <meta name="description" content="النظام الإداري المتكامل لتتبع الحضور وحساب الرواتب باحترافية" />
+    <meta name="author" content="م. باسل أشرف" />
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      :root { font-family: 'IBM Plex Sans Arabic', sans-serif; }
+      body { background-color: #0f172a; margin: 0; padding: 0; overflow-x: hidden; }
+      /* Custom scrollbar for professional feel */
+      ::-webkit-scrollbar { width: 5px; }
+      ::-webkit-scrollbar-track { background: #0f172a; }
+      ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+      /* Loading spinner fallback */
+      #root:empty::after {
+        content: '';
+        display: block;
+        width: 40px; height: 40px;
+        margin: 45vh auto;
+        border: 4px solid #1e40af;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

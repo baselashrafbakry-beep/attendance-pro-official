@@ -1,0 +1,52 @@
+import { Shield, Star, Info } from 'lucide-react';
+import { APP_NAME, APP_VERSION } from '../constants';
+
+export default function AboutPage() {
+  return (
+    <div className="min-h-screen bg-background pb-24" dir="rtl">
+      <div className="bg-card border-b border-border px-4 pt-12 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+            <Info size={20} className="text-primary" />
+          </div>
+          <h1 className="text-lg font-black text-foreground">عن التطبيق</h1>
+        </div>
+      </div>
+
+      <div className="px-4 py-8 flex flex-col items-center gap-6">
+        <div className="w-24 h-24 bg-primary/10 border-2 border-primary/20 rounded-3xl flex items-center justify-center shadow-xl shadow-primary/10">
+          <Shield size={44} className="text-primary" />
+        </div>
+        <div className="text-center">
+          <h2 className="text-2xl font-black text-foreground">{APP_NAME}</h2>
+          <p className="text-sm text-primary font-bold mt-1">{APP_VERSION}</p>
+          <p className="text-xs text-muted-foreground mt-2">نظام متكامل لإدارة الحضور والرواتب</p>
+        </div>
+
+        <div className="w-full space-y-3">
+          {[
+            { icon: '✅', title: 'تتبع الحضور اليومي', desc: 'تسجيل الدخول والخروج مع حساب التأخير والأوفرتايم تلقائياً' },
+            { icon: '💰', title: 'حساب الراتب الدقيق', desc: 'حساب الراتب الصافي مع جميع الخصومات والمكافآت' },
+            { icon: '📋', title: 'إدارة الإجازات', desc: 'طلب الإجازات وتتبع الرصيد المتبقي' },
+            { icon: '👔', title: 'لوحة تحكم المدير', desc: 'متابعة جميع الموظفين وإدارة الرواتب' },
+            { icon: '☁️', title: 'مزامنة السحابة', desc: 'حفظ البيانات على Supabase مع نسخ احتياطي محلي' },
+            { icon: '📄', title: 'تصدير التقارير', desc: 'تصدير كشوف الرواتب بصيغة PDF وExcel' },
+          ].map((f, i) => (
+            <div key={i} className="bg-card border border-border rounded-2xl p-4 flex items-start gap-3">
+              <span className="text-2xl">{f.icon}</span>
+              <div>
+                <p className="text-sm font-black text-foreground">{f.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{f.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Star size={12} className="text-warning" />
+          <span>مبني بـ React + TypeScript + Supabase</span>
+        </div>
+      </div>
+    </div>
+  );
+}
