@@ -5,9 +5,9 @@ const config: CapacitorConfig = {
   appName: 'متتبع الحضور والراتب',
   webDir: 'dist',
   
-  // ← رابط Netlify المباشر - يتم التحديث تلقائياً
+  // رابط Netlify الحي
   server: {
-    url: 'https://dazzling-starburst-f119ef.netlify.app',
+    url: 'https://exquisite-cannoli-bbdcad.netlify.app',
     cleartext: false,
   },
 
@@ -21,11 +21,6 @@ const config: CapacitorConfig = {
       launchShowDuration: 2000,
       backgroundColor: '#0f172a',
       showSpinner: false,
-      androidSplashResourceName: 'splash',
-    },
-    StatusBar: {
-      style: 'DARK',
-      backgroundColor: '#0f172a',
     },
   },
 };

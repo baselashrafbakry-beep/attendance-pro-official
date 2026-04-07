@@ -42,6 +42,17 @@ export default function AboutPage() {
           ))}
         </div>
 
+        <div className="w-full bg-primary/5 border border-primary/10 rounded-2xl p-6 mt-4 flex flex-col items-center gap-3">
+          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+            <Shield size={24} className="text-primary" />
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground mb-1 font-bold">تطوير وبرمجة</p>
+            <p className="text-lg font-black text-foreground">م باسل اشرف</p>
+            <p className="text-sm font-bold text-primary mt-1" dir="ltr">01014543845</p>
+          </div>
+        </div>
+
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Star size={12} className="text-warning" />
           <span>مبني بـ React + TypeScript + Supabase</span>
