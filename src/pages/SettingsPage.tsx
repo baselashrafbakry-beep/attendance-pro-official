@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../hooks/useApp';
-import { Settings, Save, Eye, EyeOff, Calendar, DollarSign, Clock, Shield, Plus, Trash2 } from 'lucide-react';
+import { Settings, Save, Eye, EyeOff, Calendar, DollarSign, Clock, Shield, Plus, Trash2, Cloud, CloudOff, RefreshCw, CheckCircle2, AlertCircle, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { AppSettings, OfficialHoliday } from '../types';
-import { DAYS_ARABIC } from '../constants';
+import { DAYS_ARABIC, APK_DOWNLOAD_URL } from '../constants';
 import { generateId } from '../utils/salary';
 import { db } from '../lib/supabase/db';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
 export default function SettingsPage() {
-  const { user, settings, saveSettings, officialHolidays, addHoliday, deleteHoliday } = useApp();
+  const { user, settings, saveSettings, officialHolidays, addHoliday, deleteHoliday, isSyncing, syncError, lastSync, syncFromCloud } = useApp();
   const [form, setForm] = useState<AppSettings>({ ...settings });
   const [saving, setSaving] = useState(false);
   const [showPassForm, setShowPassForm] = useState(false);
@@ -63,6 +63,33 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {/* حالة المزامنة السحابية */}
+        <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+              isSyncing ? "bg-primary/10 animate-pulse" : (syncError ? "bg-destructive/10" : "bg-success/10")
+            )}>
+              {isSyncing ? <RefreshCw size={20} className="text-primary animate-spin" /> : 
+               (syncError ? <CloudOff size={20} className="text-destructive" /> : <Cloud size={20} className="text-success" />)}
+            </div>
+            <div>
+              <p className="text-sm font-black text-foreground">المزامنة السحابية</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isSyncing ? "جاري المزامنة..." : 
+                 (syncError ? "فشل الاتصال بالسحابة" : (lastSync ? `آخر مزامنة: ${new Date(lastSync).toLocaleTimeString('ar-EG')}` : "متصل بالسحابة"))}
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => syncFromCloud()} 
+            disabled={isSyncing}
+            className="w-9 h-9 bg-muted rounded-xl flex items-center justify-center hover:bg-muted/80 disabled:opacity-50 transition-all"
+          >
+            <RefreshCw size={16} className={cn("text-muted-foreground", isSyncing && "animate-spin")} />
+          </button>
+        </div>
+
         {/* العام */}
         {tab === 'general' && (
           <div className="space-y-4">
@@ -202,6 +229,14 @@ export default function SettingsPage() {
               <span className="text-sm font-bold text-foreground">عن التطبيق</span>
               <span className="text-muted-foreground text-sm">←</span>
             </Link>
+            <a href={APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer" 
+               className="flex items-center justify-between bg-primary/5 border border-primary/10 rounded-2xl p-4 hover:bg-primary/10 transition-all">
+              <div className="flex items-center gap-3">
+                <Download size={18} className="text-primary" />
+                <span className="text-sm font-bold text-foreground">تحميل تطبيق الأندرويد</span>
+              </div>
+              <span className="text-primary text-xs font-black">APK</span>
+            </a>
           </div>
         )}
 

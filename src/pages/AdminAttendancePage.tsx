@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../hooks/useApp';
-import { Clock, Search, Download, Plus, ChevronDown } from 'lucide-react';
+import { Clock, Search, Download, Plus, ChevronDown, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { AttendanceRecord, DayType, User } from '../types';
 import { DAY_TYPE_LABELS } from '../constants';
@@ -252,61 +252,73 @@ function AddRecordModal({ employees, onClose, onSave }: {
   const dayTypes: DayType[] = ['present', 'late', 'absent', 'sick_leave', 'annual_leave', 'unpaid_leave', 'official_holiday', 'holiday'];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-card border border-border rounded-t-3xl w-full max-w-lg p-6 space-y-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <h2 className="text-base font-black text-foreground">إضافة سجل حضور</h2>
-        
-        <div>
-          <label className="text-xs font-bold text-muted-foreground mb-1.5 block">الموظف</label>
-          <select value={form.userId} onChange={e => setForm(f => ({ ...f, userId: e.target.value }))} className={cls}>
-            {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-          </select>
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-end justify-center animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-card border border-border rounded-t-[2.5rem] w-full max-w-lg flex flex-col max-h-[92dvh] shadow-2xl animate-in slide-in-from-bottom duration-500 overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Header - Sticky */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-card/80 backdrop-blur-md">
+          <h2 className="text-base font-black text-foreground">إضافة سجل حضور</h2>
+          <button onClick={onClose} className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-all">
+            <X size={20} className="text-foreground" />
+          </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-bold text-muted-foreground mb-1.5 block">التاريخ</label>
-            <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className={cls} />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-muted-foreground mb-1.5 block">نوع اليوم</label>
-            <select value={form.dayType} onChange={e => setForm(f => ({ ...f, dayType: e.target.value as DayType }))} className={cls}>
-              {dayTypes.map(t => <option key={t} value={t}>{DAY_TYPE_LABELS[t]}</option>)}
-            </select>
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-32">
+          <div className="space-y-4">
+            <div>
+              <label className="text-[11px] font-black text-muted-foreground mb-2 block uppercase tracking-wider">الموظف</label>
+              <select value={form.userId} onChange={e => setForm(f => ({ ...f, userId: e.target.value }))} className={cls}>
+                {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[11px] font-black text-muted-foreground mb-2 block uppercase tracking-wider">التاريخ</label>
+                <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className={cls} />
+              </div>
+              <div>
+                <label className="text-[11px] font-black text-muted-foreground mb-2 block uppercase tracking-wider">نوع اليوم</label>
+                <select value={form.dayType} onChange={e => setForm(f => ({ ...f, dayType: e.target.value as DayType }))} className={cls}>
+                  {dayTypes.map(t => <option key={t} value={t}>{DAY_TYPE_LABELS[t]}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[11px] font-black text-muted-foreground mb-2 block uppercase tracking-wider">وقت الدخول</label>
+                <input type="time" value={form.checkIn} onChange={e => setForm(f => ({ ...f, checkIn: e.target.value }))} className={cls} />
+              </div>
+              <div>
+                <label className="text-[11px] font-black text-muted-foreground mb-2 block uppercase tracking-wider">وقت الخروج</label>
+                <input type="time" value={form.checkOut} onChange={e => setForm(f => ({ ...f, checkOut: e.target.value }))} className={cls} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[11px] font-black text-muted-foreground mb-2 block uppercase tracking-wider">تأخير (دقيقة)</label>
+                <input type="number" min="0" value={form.lateMinutes} onChange={e => setForm(f => ({ ...f, lateMinutes: parseInt(e.target.value) || 0 }))} className={cls} />
+              </div>
+              <div>
+                <label className="text-[11px] font-black text-muted-foreground mb-2 block uppercase tracking-wider">أوفرتايم (دقيقة)</label>
+                <input type="number" min="0" value={form.overtimeMinutes} onChange={e => setForm(f => ({ ...f, overtimeMinutes: parseInt(e.target.value) || 0 }))} className={cls} />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-black text-muted-foreground mb-2 block uppercase tracking-wider">ملاحظة</label>
+              <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} className={cls} placeholder="اختياري" />
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-bold text-muted-foreground mb-1.5 block">وقت الدخول</label>
-            <input type="time" value={form.checkIn} onChange={e => setForm(f => ({ ...f, checkIn: e.target.value }))} className={cls} />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-muted-foreground mb-1.5 block">وقت الخروج</label>
-            <input type="time" value={form.checkOut} onChange={e => setForm(f => ({ ...f, checkOut: e.target.value }))} className={cls} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-bold text-muted-foreground mb-1.5 block">تأخير (دقيقة)</label>
-            <input type="number" min="0" value={form.lateMinutes} onChange={e => setForm(f => ({ ...f, lateMinutes: parseInt(e.target.value) || 0 }))} className={cls} />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-muted-foreground mb-1.5 block">أوفرتايم (دقيقة)</label>
-            <input type="number" min="0" value={form.overtimeMinutes} onChange={e => setForm(f => ({ ...f, overtimeMinutes: parseInt(e.target.value) || 0 }))} className={cls} />
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-bold text-muted-foreground mb-1.5 block">ملاحظة</label>
-          <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} className={cls} placeholder="اختياري" />
-        </div>
-
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 bg-muted text-foreground rounded-xl font-bold text-sm">إلغاء</button>
-          <button onClick={handleSave} disabled={loading} className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl font-black text-sm">
-            {loading ? '...' : 'إضافة'}
+        {/* Footer - Sticky Buttons */}
+        <div className="px-6 py-5 border-t border-border bg-card/95 backdrop-blur-md flex gap-4">
+          <button onClick={onClose} className="flex-1 py-4 bg-muted text-foreground rounded-2xl font-bold text-sm active:scale-95 transition-all">إلغاء</button>
+          <button onClick={handleSave} disabled={loading} className="flex-1 py-4 bg-primary text-primary-foreground rounded-2xl font-black text-sm hover:bg-primary/90 disabled:opacity-60 active:scale-95 transition-all shadow-lg shadow-primary/20">
+            {loading ? 'جاري الحفظ...' : 'إضافة السجل'}
           </button>
         </div>
       </div>

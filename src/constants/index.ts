@@ -3,8 +3,8 @@
 // ============================================================
 import type { AppSettings } from '../types';
 
-export const APP_NAME = 'متتبع الحضور والراتب';
-export const APP_VERSION = 'v6.2.1';
+export const APP_NAME = 'متتبع الحضور والراتب - برو';
+export const APP_VERSION = 'v6.2.2';
 
 export const STORAGE_KEYS = {
   USERS: 'ast_users',
@@ -71,6 +71,8 @@ export const DEPARTMENT_OPTIONS = [
   'الإدارة', 'المحاسبة', 'المبيعات', 'المستودع', 'Stock Controller',
   'المشتريات', 'التسويق', 'تقنية المعلومات', 'الموارد البشرية', 'العمليات', 'أخرى',
 ];
+
+export const APK_DOWNLOAD_URL = 'https://github.com/baselashrafbakry-beep/attendance-pro-official/releases/latest';
 
 export const MAX_LOGIN_ATTEMPTS = 5;
 export const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 دقيقة

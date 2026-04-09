@@ -1,5 +1,5 @@
-import { Shield, Star, Info } from 'lucide-react';
-import { APP_NAME, APP_VERSION } from '../constants';
+import { Shield, Star, Info, Download } from 'lucide-react';
+import { APP_NAME, APP_VERSION, APK_DOWNLOAD_URL } from '../constants';
 
 export default function AboutPage() {
   return (
@@ -22,6 +22,17 @@ export default function AboutPage() {
           <p className="text-sm text-primary font-bold mt-1">{APP_VERSION}</p>
           <p className="text-xs text-muted-foreground mt-2">نظام متكامل لإدارة الحضور والرواتب</p>
         </div>
+
+        {/* Android Download Button */}
+        <a 
+          href={APK_DOWNLOAD_URL} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] shadow-lg shadow-primary/20 transition-all"
+        >
+          <Download size={20} />
+          تحميل تطبيق الأندرويد (APK)
+        </a>
 
         <div className="w-full space-y-3">
           {[
