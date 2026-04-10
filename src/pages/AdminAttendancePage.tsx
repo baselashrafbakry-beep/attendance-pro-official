@@ -5,8 +5,8 @@ import { cn } from '../lib/utils';
 import type { AttendanceRecord, DayType, User } from '../types';
 import { DAY_TYPE_LABELS } from '../constants';
 import { generateId } from '../utils/salary';
+import { downloadCsv } from '../utils/export';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
 
 export default function AdminAttendancePage() {
   const { users, attendance, upsertAttendance, deleteAttendance, syncFromCloud, isSyncing } = useApp();
@@ -41,7 +41,7 @@ export default function AdminAttendancePage() {
   const presentToday = todayRecords.filter(r => ['present', 'late'].includes(r.dayType)).length;
   const absentToday = todayRecords.filter(r => r.dayType === 'absent').length;
 
-  const handleExportExcel = () => {
+  const handleExportCsv = () => {
     const rows = filtered.map(r => ({
       'الموظف': getUserName(r.userId),
       'التاريخ': r.date,
@@ -52,11 +52,8 @@ export default function AdminAttendancePage() {
       'أوفرتايم (دقيقة)': r.overtimeMinutes,
       'ملاحظة': r.note || '',
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'الحضور');
-    XLSX.writeFile(wb, `attendance_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    toast.success('تم تصدير ملف Excel');
+    downloadCsv(`attendance_${new Date().toISOString().slice(0, 10)}.csv`, rows);
+    toast.success('تم تصدير ملف CSV');
   };
 
   return (
@@ -73,7 +70,7 @@ export default function AdminAttendancePage() {
             <button onClick={() => syncFromCloud()} disabled={isSyncing} className="w-9 h-9 bg-muted border border-border text-muted-foreground rounded-xl flex items-center justify-center hover:bg-muted/80 transition-all">
               <RefreshCw size={16} className={cn(isSyncing && "animate-spin")} />
             </button>
-            <button onClick={handleExportExcel} className="w-9 h-9 bg-success/10 border border-success/20 text-success rounded-xl flex items-center justify-center hover:bg-success/20 transition-all">
+            <button onClick={handleExportCsv} className="w-9 h-9 bg-success/10 border border-success/20 text-success rounded-xl flex items-center justify-center hover:bg-success/20 transition-all">
               <Download size={16} />
             </button>
             <button onClick={() => setShowAddForm(true)} className="w-9 h-9 bg-primary/10 border border-primary/20 text-primary rounded-xl flex items-center justify-center hover:bg-primary/20 transition-all">

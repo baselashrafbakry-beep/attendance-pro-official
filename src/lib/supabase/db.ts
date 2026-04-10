@@ -8,6 +8,7 @@ import type {
   OfficialHoliday, SalaryComparison
 } from '../../types';
 import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../../constants';
+import { sha256 } from '../../utils/security';
 
 // ─── Helpers ─────────────────────────────────────────────────
 const ls = {
@@ -20,15 +21,34 @@ const ls = {
     } catch { return fallback; }
   },
   save: (key: string, val: unknown): void => {
-    try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* ignore storage errors */ }
   },
 };
+
+const NETWORK_TIMEOUT_MS = 10000;
+const TIMEOUT_ERROR = 'انتهت مهلة الاتصال بالخادم. تحقق من الشبكة وحاول مرة أخرى.';
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs = NETWORK_TIMEOUT_MS): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race<T>([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(TIMEOUT_ERROR)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 // تحويل من snake_case (Supabase) إلى camelCase (App)
 function toUser(row: Record<string, unknown>): User {
   return {
     id: row.id as string,
     username: row.username as string,
+    loginEmail: (row.login_email as string) ?? undefined,
+    authUserId: (row.auth_user_id as string) ?? undefined,
     name: row.name as string,
     role: row.role as 'admin' | 'employee',
     department: row.department as string | undefined,
@@ -159,16 +179,69 @@ function settingsToRow(userId: string, settings: AppSettings): Record<string, an
 // DB API
 // ============================================================
 export const db = {
+  async getCurrentUserFromSession(): Promise<User | null> {
+    if (!isSupabaseConfigured()) return null;
+    const { data: authData } = await withTimeout(supabase.auth.getUser());
+    const uid = authData.user?.id;
+    if (!uid) return null;
+    const { data, error } = await withTimeout(
+      supabase.from('app_users').select('*').eq('auth_user_id', uid).single()
+    );
+    if (error || !data) return null;
+    return toUser(data);
+  },
+
+  async logoutSession(): Promise<void> {
+    if (!isSupabaseConfigured()) return;
+    await supabase.auth.signOut();
+  },
+
+  async loginWithUsername(username: string, password: string): Promise<User | null> {
+    if (!isSupabaseConfigured()) {
+      return db.authenticateUser(username, password);
+    }
+    const { data: loginMeta, error: loginMetaError } = await withTimeout(
+      supabase.rpc('get_login_email', { p_username: username })
+    );
+    if (loginMetaError || !loginMeta) return null;
+    const row = Array.isArray(loginMeta) ? loginMeta[0] : loginMeta;
+    const loginEmail = String((row as Record<string, unknown>)?.login_email ?? '');
+    if (!loginEmail) return null;
+
+    const { error } = await withTimeout(
+      supabase.auth.signInWithPassword({ email: loginEmail, password })
+    );
+    if (error) return null;
+    return db.getCurrentUserFromSession();
+  },
+
+  async authenticateUser(username: string, password: string): Promise<User | null> {
+    if (!isSupabaseConfigured()) {
+      const user = await db.getUserByUsername(username);
+      if (!user) return null;
+      const ok = await db.verifyPassword(user.id, password);
+      return ok ? user : null;
+    }
+    const passwordHash = await sha256(password);
+    const { data, error } = await withTimeout(supabase.rpc('login_user', {
+      p_username: username,
+      p_password_hash: passwordHash,
+    }));
+    if (error || !data) return null;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return null;
+    return toUser(row as Record<string, unknown>);
+  },
 
   // ─── USERS ──────────────────────────────────────────────
   async getUsers(): Promise<User[]> {
     if (!isSupabaseConfigured()) {
       return ls.load<User[]>(STORAGE_KEYS.USERS, []);
     }
-    const { data, error } = await supabase
+    const { data, error } = await withTimeout(supabase
       .from('app_users')
       .select('*')
-      .order('name');
+      .order('name'));
     if (error) { console.error('[db.getUsers]', error); return ls.load<User[]>(STORAGE_KEYS.USERS, []); }
     const users = (data ?? []).map(toUser);
     ls.save(STORAGE_KEYS.USERS, users);
@@ -194,53 +267,71 @@ export const db = {
       const users = ls.load<User[]>(STORAGE_KEYS.USERS, []);
       return users.find(u => u.username.toLowerCase() === username.toLowerCase()) ?? null;
     }
-    const { data, error } = await supabase
+    const { data, error } = await withTimeout(supabase
       .from('app_users')
       .select('*')
       .ilike('username', username)
-      .single();
+      .single());
     if (error || !data) return null;
     return toUser(data);
   },
 
   async verifyPassword(userId: string, password: string): Promise<boolean> {
+    const passwordHash = await sha256(password);
     if (!isSupabaseConfigured()) {
-      // In offline mode, check localStorage
+      // In offline mode, verify hashed password from localStorage
       const passwords = ls.load<Record<string, string>>('ast_passwords', {});
-      return passwords[userId] === password;
+      const stored = passwords[userId] || '';
+      if (stored === passwordHash) return true;
+      if (stored === password) {
+        passwords[userId] = passwordHash;
+        ls.save('ast_passwords', passwords);
+        return true;
+      }
+      return false;
     }
-    const { data, error } = await supabase
+    const { data, error } = await withTimeout(supabase
       .from('app_users')
-      .select('password_text')
+      .select('*')
       .eq('id', userId)
-      .single();
+      .single());
     if (error || !data) return false;
-    return data.password_text === password;
+    const row = data as Record<string, unknown>;
+    const storedHash = String(row.password_hash ?? '');
+    if (storedHash === passwordHash) return true;
+    const legacyPlain = String(row.password_text ?? '');
+    if (legacyPlain && legacyPlain === password) {
+      await db.changePassword(userId, password);
+      return true;
+    }
+    return false;
   },
 
   async changePassword(userId: string, newPassword: string): Promise<boolean> {
+    const passwordHash = await sha256(newPassword);
     if (!isSupabaseConfigured()) {
       const passwords = ls.load<Record<string, string>>('ast_passwords', {});
-      passwords[userId] = newPassword;
+      passwords[userId] = passwordHash;
       ls.save('ast_passwords', passwords);
       return true;
     }
     const { error } = await supabase
       .from('app_users')
-      .update({ password_text: newPassword })
+      .update({ password_hash: passwordHash })
       .eq('id', userId);
     if (error) { console.error('[db.changePassword]', error); return false; }
     return true;
   },
 
   async addUser(user: Omit<User, 'id'> & { password?: string }, id: string): Promise<User | null> {
+    const passwordHash = user.password ? await sha256(user.password) : '';
     if (!isSupabaseConfigured()) {
       const users = ls.load<User[]>(STORAGE_KEYS.USERS, []);
       const newUser: User = { ...user, id };
       ls.save(STORAGE_KEYS.USERS, [...users, newUser]);
       if (user.password) {
         const passwords = ls.load<Record<string, string>>('ast_passwords', {});
-        passwords[id] = user.password;
+        passwords[id] = passwordHash;
         ls.save('ast_passwords', passwords);
       }
       return newUser;
@@ -248,7 +339,8 @@ export const db = {
     const { data, error } = await supabase.from('app_users').insert({
       id,
       username: user.username,
-      password_text: user.password || '',
+      login_email: user.loginEmail || `${user.username}@attendance.local`,
+      password_hash: passwordHash,
       name: user.name,
       role: user.role,
       department: user.department,
@@ -277,7 +369,7 @@ export const db = {
     if (updates.workEndTime !== undefined) dbUpdates.work_end_time = updates.workEndTime;
     if (updates.weeklyOffDay !== undefined) dbUpdates.weekly_off_day = updates.weeklyOffDay;
     if (updates.weeklyOffDay2 !== undefined) dbUpdates.weekly_off_day2 = updates.weeklyOffDay2;
-    if (updates.password !== undefined) dbUpdates.password_text = updates.password;
+    if (updates.password !== undefined) dbUpdates.password_hash = await sha256(updates.password);
 
     if (!isSupabaseConfigured()) {
       const users = ls.load<User[]>(STORAGE_KEYS.USERS, []);
@@ -287,7 +379,7 @@ export const db = {
       ls.save(STORAGE_KEYS.USERS, users);
       if (updates.password) {
         const passwords = ls.load<Record<string, string>>('ast_passwords', {});
-        passwords[id] = updates.password;
+        passwords[id] = await sha256(updates.password);
         ls.save('ast_passwords', passwords);
       }
       return true;
@@ -313,11 +405,11 @@ export const db = {
     const fallback = ls.load<AppSettings>(`${STORAGE_KEYS.SETTINGS}_${userId}`, { ...DEFAULT_SETTINGS });
     if (!isSupabaseConfigured()) return { ...DEFAULT_SETTINGS, ...fallback };
 
-    const { data, error } = await supabase
+    const { data, error } = await withTimeout(supabase
       .from('user_settings')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .single());
     if (error || !data) return { ...DEFAULT_SETTINGS, ...fallback };
     const s = toSettings(data);
     ls.save(`${STORAGE_KEYS.SETTINGS}_${userId}`, s);
@@ -346,7 +438,7 @@ export const db = {
     let query = supabase.from('attendance_records').select('*').order('date', { ascending: false });
     if (userId) query = query.eq('user_id', userId);
 
-    const { data, error } = await query;
+    const { data, error } = await withTimeout(query);
     if (error) {
       console.error('[db.getAttendance]', error);
       return userId ? cached.filter(r => r.userId === userId) : cached;
@@ -373,9 +465,10 @@ export const db = {
 
   async upsertAttendance(record: AttendanceRecord): Promise<AttendanceRecord | null> {
     const all = ls.load<AttendanceRecord[]>(STORAGE_KEYS.ATTENDANCE, []);
-    const idx = all.findIndex(r => r.userId === record.userId && r.date === record.date);
-    if (idx >= 0) all[idx] = record; else all.push(record);
-    ls.save(STORAGE_KEYS.ATTENDANCE, all);
+    const byUserDate = new Map<string, AttendanceRecord>();
+    all.forEach((r) => byUserDate.set(`${r.userId}__${r.date}`, r));
+    byUserDate.set(`${record.userId}__${record.date}`, record);
+    ls.save(STORAGE_KEYS.ATTENDANCE, Array.from(byUserDate.values()));
 
     if (!isSupabaseConfigured()) return record;
 
@@ -470,7 +563,7 @@ export const db = {
     let query = supabase.from('leave_requests').select('*').order('created_at', { ascending: false });
     if (userId) query = query.eq('user_id', userId);
 
-    const { data, error } = await query;
+    const { data, error } = await withTimeout(query);
     if (error) {
       console.error('[db.getLeaveRequests]', error);
       return userId ? cached.filter(l => l.userId === userId) : cached;
@@ -520,14 +613,17 @@ export const db = {
     }
 
     if (!isSupabaseConfigured()) return true;
-
-    const { error } = await supabase.from('leave_requests').update({
-      status,
-      notes: notes || null,
-      approved_by: adminId,
-      approval_date: new Date().toISOString(),
-    }).eq('id', id);
-    if (error) { console.error('[db.updateLeaveRequestStatus]', error); return false; }
+    const { data, error } = await withTimeout(supabase.rpc('admin_set_leave_status', {
+      p_leave_id: id,
+      p_status: status,
+      p_admin_id: adminId,
+      p_notes: notes || null,
+    }));
+    if (error) { console.error('[db.updateLeaveRequestStatus.rpc]', error); return false; }
+    if (data !== true) {
+      console.error('[db.updateLeaveRequestStatus.rpc] unexpected result', data);
+      return false;
+    }
     return true;
   },
 
@@ -589,7 +685,7 @@ export const db = {
     let query = supabase.from('salary_comparisons').select('*').order('created_at', { ascending: false });
     if (userId) query = query.eq('user_id', userId);
 
-    const { data, error } = await query;
+    const { data, error } = await withTimeout(query);
     if (error) { console.error('[db.getSalaryComparisons]', error); return cached; }
     const comps = (data ?? []).map(toComparison);
     ls.save(STORAGE_KEYS.COMPARISONS, comps);
@@ -625,11 +721,26 @@ export const db = {
   // ─── LOGIN ATTEMPTS ───────────────────────────────────────
   async logLoginAttempt(username: string, success: boolean, ip?: string): Promise<void> {
     if (!isSupabaseConfigured()) return;
-    await supabase.from('login_attempts').insert({
+    await withTimeout(supabase.from('login_attempts').insert({
       username,
       success,
       ip_address: ip ?? null,
-    });
+    }));
+  },
+
+  async canAttemptLogin(username: string, maxAttempts: number, lockoutMs: number): Promise<boolean> {
+    if (!isSupabaseConfigured()) return true;
+    const since = new Date(Date.now() - lockoutMs).toISOString();
+    const { data, error } = await withTimeout(supabase
+      .from('login_attempts')
+      .select('attempted_at')
+      .eq('username', username)
+      .eq('success', false)
+      .gte('attempted_at', since)
+      .order('attempted_at', { ascending: false })
+      .limit(maxAttempts));
+    if (error) return true;
+    return (data ?? []).length < maxAttempts;
   },
 
   // ─── FULL EXPORT ─────────────────────────────────────────

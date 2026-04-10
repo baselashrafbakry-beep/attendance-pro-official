@@ -1,19 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../hooks/useApp';
 import { Clock, Calendar, DollarSign, FileText, TrendingUp, TrendingDown, AlertCircle, CheckCircle, LogOut, RefreshCw, User } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { calculateSalary, getCurrentPayrollPeriod, formatCurrency, todayStr } from '../utils/salary';
-import { DAY_TYPE_LABELS } from '../constants';
+import { DAY_TYPE_LABELS, DEVELOPER_NAME, DEVELOPER_PHONE } from '../constants';
 
 export default function Dashboard() {
   const { user, attendance, settings, leaveRequests, officialHolidays, syncFromCloud, isSyncing, logout } = useApp();
-  const [_, setRefresh] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => setRefresh(r => r + 1), 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   const today = todayStr();
   const todayRecord = attendance.find(r => r.userId === user?.id && r.date === today);
@@ -213,6 +207,12 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        <Link to="/about" className="block bg-primary/5 border border-primary/15 rounded-2xl p-4 hover:bg-primary/10 transition-all">
+          <p className="text-xs text-muted-foreground font-bold mb-1">عن التطبيق / المطور</p>
+          <p className="text-sm font-black text-foreground">{DEVELOPER_NAME}</p>
+          <p className="text-xs text-primary font-bold" dir="ltr">{DEVELOPER_PHONE}</p>
+        </Link>
       </div>
     </div>
   );

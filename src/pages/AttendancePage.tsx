@@ -30,7 +30,7 @@ export default function AttendancePage() {
   const canCheckOut = !!todayRecord?.checkIn && !todayRecord?.checkOut;
 
   const handleCheckIn = async () => {
-    if (!user) return;
+    if (!user || loading) return;
     setLoading(true);
     try {
       const time = nowTimeStr();
@@ -91,7 +91,7 @@ export default function AttendancePage() {
   };
 
   const handleCheckOut = async () => {
-    if (!user || !todayRecord?.checkIn) return;
+    if (!user || !todayRecord?.checkIn || loading) return;
     setLoading(true);
     try {
       const time = nowTimeStr();

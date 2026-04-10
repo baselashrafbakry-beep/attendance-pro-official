@@ -4,7 +4,21 @@
 import { create } from 'zustand';
 import type { User, AttendanceRecord, AppSettings, LeaveRequest, OfficialHoliday, SalaryComparison } from '../types';
 import { db } from '../lib/supabase/db';
-import { DEFAULT_SETTINGS, STORAGE_KEYS } from '../constants';
+import { DEFAULT_SETTINGS, LOCKOUT_DURATION_MS, MAX_LOGIN_ATTEMPTS, STORAGE_KEYS } from '../constants';
+import { isSupabaseConfigured, supabase } from '../lib/supabase/client';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+
+let realtimeChannel: RealtimeChannel | null = null;
+let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleRealtimeSync(syncFromCloud: () => Promise<void>): void {
+  if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = setTimeout(() => {
+    syncFromCloud().catch(() => {
+      // ignore realtime-triggered sync errors; sync bar already surfaces issues
+    });
+  }, 350);
+}
 
 interface AppState {
   // Auth
@@ -29,6 +43,8 @@ interface AppState {
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   syncFromCloud: () => Promise<void>;
+  startRealtime: () => void;
+  stopRealtime: () => void;
   
   // Users
   loadUsers: () => Promise<void>;
@@ -68,9 +84,9 @@ const ls = {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; }
   },
   set: (key: string, val: unknown) => {
-    try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* ignore storage errors */ }
   },
-  remove: (key: string) => { try { localStorage.removeItem(key); } catch {} },
+  remove: (key: string) => { try { localStorage.removeItem(key); } catch { /* ignore storage errors */ } },
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -87,14 +103,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   salaryComparisons: [],
 
   initialize: async () => {
-    // استعادة المستخدم من الذاكرة المحلية
-    const savedUser = ls.get<User>(STORAGE_KEYS.CURRENT_USER);
-    if (savedUser) {
-      set({ user: savedUser, isInitialized: true });
-      // تحميل البيانات في الخلفية
-      const { syncFromCloud } = get();
-      syncFromCloud();
-    } else {
+    try {
+      const sessionUser = await db.getCurrentUserFromSession();
+      if (sessionUser) {
+        ls.set(STORAGE_KEYS.CURRENT_USER, sessionUser);
+        set({ user: sessionUser });
+        get().startRealtime();
+        get().syncFromCloud();
+        return;
+      }
+      const savedUser = ls.get<User>(STORAGE_KEYS.CURRENT_USER);
+      if (savedUser) {
+        set({ user: savedUser });
+        get().startRealtime();
+        get().syncFromCloud();
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'تعذر تهيئة التطبيق';
+      set({ syncError: msg });
+    } finally {
       set({ isInitialized: true });
     }
   },
@@ -102,21 +129,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   login: async (username: string, password: string) => {
     set({ isSyncing: true, syncError: null });
     try {
-      const user = await db.getUserByUsername(username);
+      const allowed = await db.canAttemptLogin(username, MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MS);
+      if (!allowed) {
+        set({ isSyncing: false });
+        return { success: false, error: 'تم قفل الحساب مؤقتًا. حاول لاحقًا.' };
+      }
+      const user = await db.loginWithUsername(username, password);
       if (!user) {
         await db.logLoginAttempt(username, false);
-        return { success: false, error: 'اسم المستخدم غير موجود' };
-      }
-      
-      const valid = await db.verifyPassword(user.id, password);
-      if (!valid) {
-        await db.logLoginAttempt(username, false);
-        return { success: false, error: 'كلمة المرور غير صحيحة' };
+        set({ isSyncing: false });
+        return { success: false, error: 'بيانات الدخول غير صحيحة' };
       }
 
       await db.logLoginAttempt(username, true);
       ls.set(STORAGE_KEYS.CURRENT_USER, user);
       set({ user, isSyncing: false });
+      get().startRealtime();
       
       // تحميل البيانات
       const { syncFromCloud } = get();
@@ -131,6 +159,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   logout: () => {
+    get().stopRealtime();
+    db.logoutSession().catch(() => {
+      // best effort signout
+    });
     ls.remove(STORAGE_KEYS.CURRENT_USER);
     set({
       user: null,
@@ -145,6 +177,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { user } = get();
     set({ isSyncing: true, syncError: null });
     try {
+      const sessionUser = await db.getCurrentUserFromSession();
+      if (sessionUser && (!user || user.id !== sessionUser.id || user.role !== sessionUser.role || user.name !== sessionUser.name)) {
+        ls.set(STORAGE_KEYS.CURRENT_USER, sessionUser);
+        set({ user: sessionUser });
+      }
+
       const promises: Promise<void>[] = [
         get().loadHolidays(),
       ];
@@ -163,12 +201,54 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
       
-      await Promise.allSettled(promises);
-      set({ isSyncing: false, lastSync: new Date() });
+      const results = await Promise.allSettled(promises);
+      const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+      if (failed.length > 0) {
+        const details = failed.map(f => {
+          if (f.reason instanceof Error) return f.reason.message;
+          return String(f.reason);
+        }).slice(0, 2).join(' | ');
+        set({ isSyncing: false, syncError: `فشل جزئي في المزامنة (${failed.length}). ${details}` });
+        return;
+      }
+      set({ isSyncing: false, lastSync: new Date(), syncError: null });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'خطأ في المزامنة';
       set({ isSyncing: false, syncError: msg });
     }
+  },
+
+  startRealtime: () => {
+    if (!isSupabaseConfigured()) return;
+    if (realtimeChannel) return;
+
+    const onDataChanged = () => {
+      scheduleRealtimeSync(get().syncFromCloud);
+    };
+
+    realtimeChannel = supabase
+      .channel('attendance-pro-live-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, onDataChanged)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, onDataChanged)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'salary_comparisons' }, onDataChanged)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'official_holidays' }, onDataChanged)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_users' }, onDataChanged)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_settings' }, onDataChanged)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          onDataChanged();
+        }
+      });
+  },
+
+  stopRealtime: () => {
+    if (syncDebounceTimer) {
+      clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = null;
+    }
+    if (!realtimeChannel) return;
+    supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
   },
 
   // ── Users ──
@@ -279,11 +359,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateLeaveStatus: async (id, status, adminId, notes) => {
     const ok = await db.updateLeaveRequestStatus(id, status, adminId, notes);
     if (ok) {
-      set(state => ({
-        leaveRequests: state.leaveRequests.map(r =>
-          r.id === id ? { ...r, status, notes, approvedBy: adminId } : r
-        ),
-      }));
+      const { user } = get();
+      if (user?.role === 'admin') {
+        await get().loadLeaveRequests();
+        await get().loadAttendance();
+      } else {
+        await get().loadLeaveRequests(user?.id);
+        await get().loadAttendance(user?.id);
+      }
     }
     return ok;
   },

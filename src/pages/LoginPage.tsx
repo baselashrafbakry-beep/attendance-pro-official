@@ -6,8 +6,16 @@ import { cn } from '../lib/utils';
 import { APP_NAME, APP_VERSION, MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MS } from '../constants';
 import { toast } from 'sonner';
 
-const LS_KEY_ATTEMPTS = 'ast_login_attempts';
-const LS_KEY_LOCKOUT = 'ast_lockout_until';
+const LS_KEY_ATTEMPTS_PREFIX = 'ast_login_attempts';
+const LS_KEY_LOCKOUT_PREFIX = 'ast_lockout_until';
+
+function lockoutKey(username: string): string {
+  return `${LS_KEY_LOCKOUT_PREFIX}:${username.toLowerCase()}`;
+}
+
+function attemptsKey(username: string): string {
+  return `${LS_KEY_ATTEMPTS_PREFIX}:${username.toLowerCase()}`;
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -26,14 +34,22 @@ export default function LoginPage() {
   }, [user, navigate]);
 
   useEffect(() => {
-    // استعادة حالة القفل
-    const savedAttempts = parseInt(localStorage.getItem(LS_KEY_ATTEMPTS) || '0', 10);
-    const savedLockout = parseInt(localStorage.getItem(LS_KEY_LOCKOUT) || '0', 10);
+    const normalized = username.trim().toLowerCase();
+    if (!normalized) {
+      setAttempts(0);
+      setLockedUntil(null);
+      return;
+    }
+    // Restore lockout status per username to avoid locking all users globally.
+    const savedAttempts = parseInt(localStorage.getItem(attemptsKey(normalized)) || '0', 10);
+    const savedLockout = parseInt(localStorage.getItem(lockoutKey(normalized)) || '0', 10);
     setAttempts(savedAttempts);
     if (savedLockout > Date.now()) {
       setLockedUntil(savedLockout);
+    } else {
+      setLockedUntil(null);
     }
-  }, []);
+  }, [username]);
 
   useEffect(() => {
     if (!lockedUntil) return;
@@ -43,13 +59,16 @@ export default function LoginPage() {
       if (remaining <= 0) {
         setLockedUntil(null);
         setAttempts(0);
-        localStorage.removeItem(LS_KEY_ATTEMPTS);
-        localStorage.removeItem(LS_KEY_LOCKOUT);
+        const normalized = username.trim().toLowerCase();
+        if (normalized) {
+          localStorage.removeItem(attemptsKey(normalized));
+          localStorage.removeItem(lockoutKey(normalized));
+        }
         clearInterval(interval);
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [lockedUntil]);
+  }, [lockedUntil, username]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,24 +86,25 @@ export default function LoginPage() {
 
     const result = await login(username.trim(), password);
     setLoading(false);
+    const normalized = username.trim().toLowerCase();
 
     if (result.success) {
-      localStorage.removeItem(LS_KEY_ATTEMPTS);
-      localStorage.removeItem(LS_KEY_LOCKOUT);
+      localStorage.removeItem(attemptsKey(normalized));
+      localStorage.removeItem(lockoutKey(normalized));
       toast.success('تم تسجيل الدخول بنجاح');
       navigate('/', { replace: true });
     } else {
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);
-      localStorage.setItem(LS_KEY_ATTEMPTS, String(newAttempts));
+      localStorage.setItem(attemptsKey(normalized), String(newAttempts));
 
       if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
         const lockout = Date.now() + LOCKOUT_DURATION_MS;
         setLockedUntil(lockout);
-        localStorage.setItem(LS_KEY_LOCKOUT, String(lockout));
+        localStorage.setItem(lockoutKey(normalized), String(lockout));
         setError(`تم قفل الحساب بسبب المحاولات المتعددة. أعد المحاولة بعد 15 دقيقة.`);
       } else {
-        setError(result.error || 'بيانات الدخول غير صحيحة');
+        setError('بيانات الدخول غير صحيحة');
       }
     }
   };

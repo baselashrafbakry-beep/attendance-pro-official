@@ -1,9 +1,12 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../hooks/useApp';
 import { Users, Clock, DollarSign, FileText, TrendingUp, AlertCircle, LogOut, RefreshCw, Calendar } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { calculateSalary, getCurrentPayrollPeriod, formatCurrency } from '../utils/salary';
+import { db } from '../lib/supabase/db';
+import type { AppSettings } from '../types';
+import { DEVELOPER_NAME, DEVELOPER_PHONE } from '../constants';
 
 export default function AdminDashboard() {
   const { user, users, attendance, leaveRequests, officialHolidays, settings, isSyncing, syncFromCloud, logout } = useApp();
@@ -12,7 +15,29 @@ export default function AdminDashboard() {
   const holidayDates = officialHolidays.map(h => h.date);
   const today = new Date().toISOString().slice(0, 10);
 
-  const employees = users.filter(u => u.role === 'employee');
+  const employees = useMemo(() => users.filter(u => u.role === 'employee'), [users]);
+  const employeeIdsKey = useMemo(() => employees.map(e => e.id).sort().join(','), [employees]);
+  const [employeeSettings, setEmployeeSettings] = useState<Record<string, AppSettings>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadEmployeeSettings = async () => {
+      if (employees.length === 0) {
+        if (!cancelled) setEmployeeSettings({});
+        return;
+      }
+      const pairs = await Promise.all(
+        employees.map(async (emp) => [emp.id, await db.getSettings(emp.id)] as const)
+      );
+      if (!cancelled) {
+        setEmployeeSettings(Object.fromEntries(pairs));
+      }
+    };
+    loadEmployeeSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [employeeIdsKey, employees]);
 
   // إحصائيات اليوم
   const todayStats = useMemo(() => {
@@ -33,8 +58,10 @@ export default function AdminDashboard() {
   const totalSalaries = useMemo(() => {
     return employees.reduce((sum, emp) => {
       const empAttendance = attendance.filter(r => r.userId === emp.id);
+      const empStoredSettings = employeeSettings[emp.id];
       const empSettings = {
-        ...settings,
+        ...settings, // fallback
+        ...empStoredSettings,
         baseSalary: emp.baseSalary,
         transportAllowance: emp.transportAllowance,
         workStartTime: emp.workStartTime,
@@ -45,7 +72,7 @@ export default function AdminDashboard() {
       const breakdown = calculateSalary(empAttendance, empSettings, period.start, period.end, holidayDates);
       return sum + breakdown.netSalary;
     }, 0);
-  }, [employees, attendance, settings, period.start, period.end, holidayDates]);
+  }, [employees, attendance, employeeSettings, settings, period.start, period.end, holidayDates]);
 
   return (
     <div className="min-h-screen bg-background pb-24" dir="rtl">
@@ -175,6 +202,12 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
+
+        <Link to="/about" className="block bg-primary/5 border border-primary/15 rounded-2xl p-4 hover:bg-primary/10 transition-all">
+          <p className="text-xs text-muted-foreground font-bold mb-1">عن التطبيق / المطور</p>
+          <p className="text-sm font-black text-foreground">{DEVELOPER_NAME}</p>
+          <p className="text-xs text-primary font-bold" dir="ltr">{DEVELOPER_PHONE}</p>
+        </Link>
       </div>
     </div>
   );

@@ -33,7 +33,6 @@ export default defineConfig(({ mode }) => {
             ui: ['framer-motion', 'lucide-react'],
             charts: ['recharts'],
             supabase: ['@supabase/supabase-js'],
-            xlsx: ['xlsx'],
             pdf: ['jspdf', 'jspdf-autotable'],
           },
         },

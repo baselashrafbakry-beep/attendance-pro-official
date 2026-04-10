@@ -71,7 +71,7 @@ function SyncStatusBar() {
 
 export default function App() {
   const { initialize } = useApp();
-  useEffect(() => { initialize(); }, []);
+  useEffect(() => { initialize(); }, [initialize]);
 
   return (
     <ErrorBoundary>

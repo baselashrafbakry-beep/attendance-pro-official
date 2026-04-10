@@ -1,5 +1,5 @@
 import { Shield, Star, Info, Download } from 'lucide-react';
-import { APP_NAME, APP_VERSION, APK_DOWNLOAD_URL } from '../constants';
+import { APP_NAME, APP_VERSION, APK_DOWNLOAD_URL, DEVELOPER_NAME, DEVELOPER_PHONE } from '../constants';
 
 export default function AboutPage() {
   return (
@@ -59,8 +59,10 @@ export default function AboutPage() {
           </div>
           <div className="text-center">
             <p className="text-xs text-muted-foreground mb-1 font-bold">تطوير وبرمجة</p>
-            <p className="text-lg font-black text-foreground">م باسل اشرف</p>
-            <p className="text-sm font-bold text-primary mt-1" dir="ltr">01014543845</p>
+            <p className="text-lg font-black text-foreground">{DEVELOPER_NAME}</p>
+            <a className="text-sm font-bold text-primary mt-1 inline-block" dir="ltr" href={`tel:${DEVELOPER_PHONE}`}>
+              {DEVELOPER_PHONE}
+            </a>
           </div>
         </div>
 

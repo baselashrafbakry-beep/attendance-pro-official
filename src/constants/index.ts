@@ -75,6 +75,8 @@ export const DEPARTMENT_OPTIONS = [
 ];
 
 export const APK_DOWNLOAD_URL = 'https://github.com/baselashrafbakry-beep/attendance-pro-official/releases/latest';
+export const DEVELOPER_NAME = 'م باسل اشرف';
+export const DEVELOPER_PHONE = '01014543845';
 
 export const MAX_LOGIN_ATTEMPTS = 5;
 export const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 دقيقة

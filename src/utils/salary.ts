@@ -4,6 +4,18 @@
 import type { AttendanceRecord, AppSettings, SalaryBreakdown } from '../types';
 import { MONTHS_ARABIC } from '../constants';
 
+export function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1, 12, 0, 0, 0);
+}
+
+export function formatLocalDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 /**
  * يحسب عدد دقائق التأخر أو الأوفرتايم لسجل حضور
  */
@@ -53,6 +65,14 @@ export function getMonthRange(year: number, month: number, monthStartDay: number
   end: Date;
   label: string;
 } {
+  // Handle monthStartDay=1 as a full calendar month to avoid edge-case shifts.
+  if (monthStartDay <= 1) {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0);
+    const label = `${MONTHS_ARABIC[start.getMonth()]} ${start.getFullYear()}`;
+    return { start, end, label };
+  }
+
   // الشهر 0-based في JS
   const start = new Date(year, month - 1, monthStartDay);
   const end = new Date(year, month, monthStartDay - 1);
@@ -101,7 +121,7 @@ export function countWorkingDays(
   const cur = new Date(start);
   while (cur <= end) {
     const dow = cur.getDay();
-    const dateStr = cur.toISOString().slice(0, 10);
+    const dateStr = formatLocalDate(cur);
     const isOff = dow === weeklyOffDay || (weeklyOffDay2 >= 0 && dow === weeklyOffDay2);
     const isHoliday = officialHolidayDates.includes(dateStr);
     if (!isOff && !isHoliday) count++;
@@ -122,7 +142,7 @@ export function calculateSalary(
 ): SalaryBreakdown {
   // تصفية السجلات للفترة
   const periodRecords = records.filter(r => {
-    const d = new Date(r.date);
+    const d = parseLocalDate(r.date);
     return d >= periodStart && d <= periodEnd;
   });
 
@@ -289,7 +309,6 @@ export function generateId(): string {
  */
 export function todayStr(): string {
   const d = new Date();
-  const offset = d.getTimezoneOffset();
   // Egypt is UTC+2 (or +3 during DST)
   // For simplicity and to avoid DST issues, we can use Intl.DateTimeFormat
   return new Intl.DateTimeFormat('en-CA', { 

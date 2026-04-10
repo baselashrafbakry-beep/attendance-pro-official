@@ -3,8 +3,8 @@ import { useApp } from '../hooks/useApp';
 import { DollarSign, Download, ChevronDown, TrendingDown, TrendingUp } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { calculateSalary, getCurrentPayrollPeriod, getMonthRange, formatCurrency } from '../utils/salary';
+import { downloadCsv } from '../utils/export';
 import { MONTHS_ARABIC } from '../constants';
-import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
@@ -51,7 +51,7 @@ export default function AdminSalaryPage() {
   const totalDeductions = salaries.reduce((s, { breakdown }) => s + breakdown.absenceDeduction + breakdown.lateDeduction, 0);
   const totalOvertime = salaries.reduce((s, { breakdown }) => s + breakdown.overtimePay, 0);
 
-  const handleExportExcel = () => {
+  const handleExportCsv = () => {
     const rows = salaries.map(({ emp, breakdown }) => ({
       'الموظف': emp.name,
       'القسم': emp.department || '',
@@ -67,11 +67,8 @@ export default function AdminSalaryPage() {
       'أيام حضور': breakdown.presentDays,
       'أيام غياب': breakdown.absentDays,
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, period.label);
-    XLSX.writeFile(wb, `salaries_${period.label}.xlsx`);
-    toast.success('تم تصدير كشف الرواتب');
+    downloadCsv(`salaries_${period.label}.csv`, rows);
+    toast.success('تم تصدير ملف CSV');
   };
 
   const handleExportPDF = () => {
@@ -114,8 +111,8 @@ export default function AdminSalaryPage() {
             <h1 className="text-lg font-black text-foreground">كشف الرواتب</h1>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleExportExcel} className="px-3 py-2 bg-success/10 border border-success/20 text-success rounded-xl flex items-center gap-1.5 text-xs font-bold hover:bg-success/20">
-              <Download size={14} /> Excel
+            <button onClick={handleExportCsv} className="px-3 py-2 bg-success/10 border border-success/20 text-success rounded-xl flex items-center gap-1.5 text-xs font-bold hover:bg-success/20">
+              <Download size={14} /> CSV
             </button>
             <button onClick={handleExportPDF} className="px-3 py-2 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl flex items-center gap-1.5 text-xs font-bold hover:bg-destructive/20">
               <Download size={14} /> PDF

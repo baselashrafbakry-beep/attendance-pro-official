@@ -5,7 +5,7 @@ import { cn } from '../lib/utils';
 import { DAY_TYPE_LABELS, MONTHS_ARABIC } from '../constants';
 import type { AttendanceRecord, DayType } from '../types';
 import { toast } from 'sonner';
-import { generateId } from '../utils/salary';
+import { calcMinutes, parseLocalDate } from '../utils/salary';
 
 const DAY_TYPE_COLORS: Record<string, string> = {
   present: 'success',
@@ -19,7 +19,7 @@ const DAY_TYPE_COLORS: Record<string, string> = {
 };
 
 export default function HistoryPage() {
-  const { user, attendance, upsertAttendance, deleteAttendance } = useApp();
+  const { user, attendance, upsertAttendance, deleteAttendance, settings } = useApp();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<DayType | 'all'>('all');
   const [filterMonth, setFilterMonth] = useState('');
@@ -139,6 +139,7 @@ export default function HistoryPage() {
       {editRecord && (
         <EditModal
           record={editRecord}
+          settings={settings}
           onClose={() => setEditRecord(null)}
           onSave={async (updated) => {
             await upsertAttendance(updated);
@@ -157,7 +158,7 @@ function RecordCard({ record, onEdit, onDelete }: {
   onDelete: () => void;
 }) {
   const color = DAY_TYPE_COLORS[record.dayType] || 'muted';
-  const d = new Date(record.date);
+  const d = parseLocalDate(record.date);
   const dayName = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][d.getDay()];
   const dateFormatted = `${d.getDate()} ${MONTHS_ARABIC[d.getMonth()]} ${d.getFullYear()}`;
 
@@ -194,8 +195,9 @@ function RecordCard({ record, onEdit, onDelete }: {
   );
 }
 
-function EditModal({ record, onClose, onSave }: {
+function EditModal({ record, settings, onClose, onSave }: {
   record: AttendanceRecord;
+  settings: import('../types').AppSettings;
   onClose: () => void;
   onSave: (r: AttendanceRecord) => Promise<void>;
 }) {
@@ -203,8 +205,22 @@ function EditModal({ record, onClose, onSave }: {
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
+    let next = { ...form, isManualEntry: true };
+    if (next.checkIn && ['present', 'late'].includes(next.dayType)) {
+      const { lateMinutes, overtimeMinutes } = calcMinutes(
+        next.checkIn,
+        next.checkOut,
+        settings
+      );
+      next = {
+        ...next,
+        lateMinutes,
+        overtimeMinutes,
+        dayType: lateMinutes > 0 ? 'late' : 'present',
+      };
+    }
     setLoading(true);
-    await onSave({ ...form, isManualEntry: true });
+    await onSave(next);
     setLoading(false);
   };
 

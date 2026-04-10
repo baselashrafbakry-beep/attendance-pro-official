@@ -5,7 +5,7 @@
 import type { User } from '../types';
 import { STORAGE_KEYS } from '../constants';
 
-const SEED_KEY = 'ast_seeded_v621';
+const SEED_KEY = 'ast_seeded_v631';
 
 export function seedOfflineData() {
   if (localStorage.getItem(SEED_KEY)) return; // Already seeded
@@ -49,8 +49,11 @@ export function seedOfflineData() {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(defaultUsers));
   }
 
-  // Seed passwords
-  const passwords = { admin: 'admin123', basel: 'basel123' };
+  // Seed hashed passwords (sha256)
+  const passwords = {
+    admin: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',
+    basel: 'c9d5e321a841f479afaef61463153eebef0d645d8787af0b25e267fdc4d58f38',
+  };
   localStorage.setItem('ast_passwords', JSON.stringify(passwords));
 
   // Mark as seeded

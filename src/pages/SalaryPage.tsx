@@ -26,7 +26,7 @@ export default function SalaryPage() {
     });
   }, [settings.monthStartDay]);
 
-  const period = periods[Math.abs(selectedPeriod)] || getCurrentPayrollPeriod(settings.monthStartDay);
+  const period = periods[-selectedPeriod] || getCurrentPayrollPeriod(settings.monthStartDay);
   const holidayDates = officialHolidays.map(h => h.date);
 
   const breakdown = useMemo(() => {

@@ -3,7 +3,7 @@ import { useApp } from '../hooks/useApp';
 import { Upload, Check, AlertCircle, Loader2 } from 'lucide-react';
 import type { AttendanceRecord, DayType } from '../types';
 import { DAY_TYPE_LABELS, MONTHS_ARABIC } from '../constants';
-import { generateId } from '../utils/salary';
+import { generateId, calcMinutes, formatLocalDate } from '../utils/salary';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 
@@ -22,15 +22,14 @@ export default function BulkPage() {
 
   const generateDays = () => {
     const [year, mon] = month.split('-').map(Number);
-    const daysInMonth = new Date(year, mon, 0).getDate();
     const start = settings.monthStartDay;
     
     const dates: string[] = [];
     // من يوم البداية في الشهر الماضي إلى يوم البداية-1 هذا الشهر
-    let d = new Date(year, mon - 2, start); // الشهر الماضي
+    const d = new Date(year, mon - 2, start); // الشهر الماضي
     const endD = new Date(year, mon - 1, start - 1);
     while (d <= endD) {
-      dates.push(d.toISOString().slice(0, 10));
+      dates.push(formatLocalDate(d));
       d.setDate(d.getDate() + 1);
     }
 
@@ -60,17 +59,30 @@ export default function BulkPage() {
     if (!user) return;
     setLoading(true);
     
-    const records: AttendanceRecord[] = rows.map(r => ({
-      id: generateId(),
-      userId: user.id,
-      date: r.date,
-      dayType: r.dayType,
-      checkIn: r.checkIn || undefined,
-      checkOut: r.checkOut || undefined,
-      lateMinutes: 0,
-      overtimeMinutes: 0,
-      isManualEntry: true,
-    }));
+    const records: AttendanceRecord[] = rows.map(r => {
+      const checkIn = r.checkIn || undefined;
+      const checkOut = r.checkOut || undefined;
+      const shouldCalc = checkIn && ['present', 'late'].includes(r.dayType);
+      const { lateMinutes, overtimeMinutes } = shouldCalc
+        ? calcMinutes(checkIn, checkOut, settings)
+        : { lateMinutes: 0, overtimeMinutes: 0 };
+      const normalizedDayType: DayType =
+        r.dayType === 'present' || r.dayType === 'late'
+          ? (lateMinutes > 0 ? 'late' : 'present')
+          : r.dayType;
+
+      return {
+        id: generateId(),
+        userId: user.id,
+        date: r.date,
+        dayType: normalizedDayType,
+        checkIn,
+        checkOut,
+        lateMinutes,
+        overtimeMinutes,
+        isManualEntry: true,
+      };
+    });
 
     const ok = await bulkUpsertAttendance(records);
     setLoading(false);
@@ -119,7 +131,7 @@ export default function BulkPage() {
 
             <div className="space-y-2">
               {rows.map((row, idx) => {
-                const d = new Date(row.date);
+                const d = new Date(`${row.date}T12:00:00`);
                 const dayName = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][d.getDay()];
                 const isOff = row.dayType === 'holiday' || row.dayType === 'official_holiday';
 
