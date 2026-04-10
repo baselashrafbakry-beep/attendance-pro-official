@@ -4,7 +4,7 @@
 import type { AppSettings } from '../types';
 
 export const APP_NAME = 'متتبع الحضور والراتب - برو';
-export const APP_VERSION = 'v6.2.2';
+export const APP_VERSION = 'v6.3.0';
 
 export const STORAGE_KEYS = {
   USERS: 'ast_users',
@@ -35,6 +35,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   insuranceRate: 0,
   taxEnabled: false,
   taxRate: 0,
+  requireGPS: true,
+  checkTimeCheating: true,
 };
 
 export const DAY_TYPE_LABELS: Record<string, string> = {

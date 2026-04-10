@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../hooks/useApp';
-import { Clock, Search, Download, Plus, ChevronDown, X } from 'lucide-react';
+import { Clock, Search, Download, Plus, ChevronDown, X, MapPin, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { AttendanceRecord, DayType, User } from '../types';
 import { DAY_TYPE_LABELS } from '../constants';
@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 export default function AdminAttendancePage() {
-  const { users, attendance, upsertAttendance, deleteAttendance } = useApp();
+  const { users, attendance, upsertAttendance, deleteAttendance, syncFromCloud, isSyncing } = useApp();
   const [filterUser, setFilterUser] = useState('all');
   const [filterDate, setFilterDate] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
@@ -70,6 +70,9 @@ export default function AdminAttendancePage() {
             <h1 className="text-lg font-black text-foreground">سجل الحضور</h1>
           </div>
           <div className="flex gap-2">
+            <button onClick={() => syncFromCloud()} disabled={isSyncing} className="w-9 h-9 bg-muted border border-border text-muted-foreground rounded-xl flex items-center justify-center hover:bg-muted/80 transition-all">
+              <RefreshCw size={16} className={cn(isSyncing && "animate-spin")} />
+            </button>
             <button onClick={handleExportExcel} className="w-9 h-9 bg-success/10 border border-success/20 text-success rounded-xl flex items-center justify-center hover:bg-success/20 transition-all">
               <Download size={16} />
             </button>
@@ -203,6 +206,28 @@ function AdminRecordCard({ record, empName, onDelete }: {
             {record.lateMinutes > 0 && <div className="bg-warning/10 rounded-xl p-2"><span className="text-muted-foreground">تأخير: </span><span className="text-warning font-black">{record.lateMinutes} د</span></div>}
             {record.overtimeMinutes > 0 && <div className="bg-success/10 rounded-xl p-2"><span className="text-muted-foreground">أوفرتايم: </span><span className="text-success font-black">{record.overtimeMinutes} د</span></div>}
           </div>
+          {record.checkInLocation && (
+            <a
+              href={`https://www.google.com/maps?q=${record.checkInLocation.lat},${record.checkInLocation.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 p-2 bg-info/10 text-info rounded-xl text-[10px] font-bold hover:bg-info/20 transition-all"
+            >
+              <MapPin size={12} />
+              موقع تسجيل الدخول (خريطة)
+            </a>
+          )}
+          {record.checkOutLocation && (
+            <a
+              href={`https://www.google.com/maps?q=${record.checkOutLocation.lat},${record.checkOutLocation.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 p-2 bg-primary/10 text-primary rounded-xl text-[10px] font-bold hover:bg-primary/20 transition-all"
+            >
+              <MapPin size={12} />
+              موقع تسجيل الخروج (خريطة)
+            </a>
+          )}
           {record.note && <p className="text-[10px] text-muted-foreground">{record.note}</p>}
           <button onClick={onDelete} className="w-full py-2 bg-destructive/10 text-destructive rounded-xl text-xs font-bold hover:bg-destructive/20 transition-all">
             حذف السجل

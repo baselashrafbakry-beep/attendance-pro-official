@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../hooks/useApp';
-import { Settings, Save, Eye, EyeOff, Calendar, DollarSign, Clock, Shield, Plus, Trash2, Cloud, CloudOff, RefreshCw, CheckCircle2, AlertCircle, Download } from 'lucide-react';
+import { Settings, Save, Eye, EyeOff, Calendar, DollarSign, Clock, Shield, Plus, Trash2, Cloud, CloudOff, RefreshCw, CheckCircle2, AlertCircle, Download, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useNavigate } from 'react-router-dom';
 import type { AppSettings, OfficialHoliday } from '../types';
 import { DAYS_ARABIC, APK_DOWNLOAD_URL } from '../constants';
 import { generateId } from '../utils/salary';
@@ -10,7 +11,8 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
 export default function SettingsPage() {
-  const { user, settings, saveSettings, officialHolidays, addHoliday, deleteHoliday, isSyncing, syncError, lastSync, syncFromCloud } = useApp();
+  const { user, settings, saveSettings, officialHolidays, addHoliday, deleteHoliday, isSyncing, syncError, lastSync, syncFromCloud, logout } = useApp();
+  const navigate = useNavigate();
   const [form, setForm] = useState<AppSettings>({ ...settings });
   const [saving, setSaving] = useState(false);
   const [showPassForm, setShowPassForm] = useState(false);
@@ -208,6 +210,16 @@ export default function SettingsPage() {
         {/* الأمان */}
         {tab === 'security' && (
           <div className="space-y-4">
+            <SectionCard title="أمان النظام">
+              <Toggle label="فرض تحديد الموقع (GPS)" value={form.requireGPS} onChange={v => set('requireGPS', v)} />
+              <p className="text-[10px] text-muted-foreground mt-1">يمنع الموظف من تسجيل الحضور إذا لم يتم تحديد موقعه.</p>
+              
+              <div className="mt-4 pt-4 border-t border-border">
+                <Toggle label="كشف التلاعب بالوقت" value={form.checkTimeCheating} onChange={v => set('checkTimeCheating', v)} />
+                <p className="text-[10px] text-muted-foreground mt-1">يتحقق من وقت الهاتف الموظف للتأكد من عدم التلاعب بالساعة.</p>
+              </div>
+            </SectionCard>
+
             <SectionCard title="تغيير كلمة المرور">
               {showPassForm ? (
                 <ChangePasswordForm userId={user?.id || ''} onClose={() => setShowPassForm(false)} />
@@ -237,6 +249,16 @@ export default function SettingsPage() {
               </div>
               <span className="text-primary text-xs font-black">APK</span>
             </a>
+
+            <button
+              onClick={() => {
+                logout();
+                navigate('/login');
+              }}
+              className="w-full py-4 mt-6 bg-destructive/10 border border-destructive/20 text-destructive rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:bg-destructive/20 transition-all"
+            >
+              <LogOut size={18} /> تسجيل الخروج
+            </button>
           </div>
         )}
 

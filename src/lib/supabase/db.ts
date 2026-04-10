@@ -51,6 +51,8 @@ function toAttendance(row: Record<string, unknown>): AttendanceRecord {
     date: typeof row.date === 'string' ? row.date.slice(0, 10) : row.date as string,
     checkIn: (row.check_in as string) ?? undefined,
     checkOut: (row.check_out as string) ?? undefined,
+    checkInLocation: row.check_in_location as { lat: number; lng: number } | undefined,
+    checkOutLocation: row.check_out_location as { lat: number; lng: number } | undefined,
     dayType: row.day_type as AttendanceRecord['dayType'],
     lateMinutes: Number(row.late_minutes ?? 0),
     overtimeMinutes: Number(row.overtime_minutes ?? 0),
@@ -120,6 +122,8 @@ function toSettings(row: Record<string, unknown>): AppSettings {
     insuranceRate: Number(row.insurance_rate ?? 0),
     taxEnabled: (row.tax_enabled as boolean) ?? false,
     taxRate: Number(row.tax_rate ?? 0),
+    requireGPS: (row.require_gps as boolean) ?? true,
+    checkTimeCheating: (row.check_time_cheating as boolean) ?? true,
   };
 }
 
@@ -146,6 +150,8 @@ function settingsToRow(userId: string, settings: AppSettings): Record<string, an
     insurance_rate: settings.insuranceRate,
     tax_enabled: settings.taxEnabled,
     tax_rate: settings.taxRate,
+    require_gps: settings.requireGPS,
+    check_time_cheating: settings.checkTimeCheating,
   };
 }
 
@@ -379,6 +385,8 @@ export const db = {
       date: record.date,
       check_in: record.checkIn || null,
       check_out: record.checkOut || null,
+      check_in_location: record.checkInLocation || null,
+      check_out_location: record.checkOutLocation || null,
       day_type: record.dayType,
       late_minutes: record.lateMinutes,
       overtime_minutes: record.overtimeMinutes,
@@ -392,8 +400,22 @@ export const db = {
       .select()
       .single();
 
-    if (error) { console.error('[db.upsertAttendance]', error); return record; }
-    return toAttendance(data);
+    if (error) { 
+      console.error('[db.upsertAttendance] Database Error:', error); 
+      // If it's a conflict or other error, we still want the local update to persist
+      // but we should return null to indicate DB sync failure if needed.
+      // For now, let's return the local record so the UI stays responsive.
+      return record; 
+    }
+    const syncedRecord = toAttendance(data);
+    
+    // Update local storage with the synced record (it might have a DB-generated ID or timestamps)
+    const finalAll = ls.load<AttendanceRecord[]>(STORAGE_KEYS.ATTENDANCE, []);
+    const finalIdx = finalAll.findIndex(r => r.userId === syncedRecord.userId && r.date === syncedRecord.date);
+    if (finalIdx >= 0) finalAll[finalIdx] = syncedRecord; else finalAll.push(syncedRecord);
+    ls.save(STORAGE_KEYS.ATTENDANCE, finalAll);
+
+    return syncedRecord;
   },
 
   async deleteAttendance(id: string): Promise<boolean> {
@@ -422,6 +444,8 @@ export const db = {
       date: r.date,
       check_in: r.checkIn || null,
       check_out: r.checkOut || null,
+      check_in_location: r.checkInLocation || null,
+      check_out_location: r.checkOutLocation || null,
       day_type: r.dayType,
       late_minutes: r.lateMinutes,
       overtime_minutes: r.overtimeMinutes,

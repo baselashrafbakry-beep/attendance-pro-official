@@ -37,12 +37,46 @@ export default function AttendancePage() {
       const { lateMinutes } = calcMinutes(time, undefined, settings);
       const dayType: DayType = lateMinutes > 0 ? 'late' : 'present';
 
+      let checkInLocation;
+      try {
+        const pos = await new Promise<GeolocationPosition>((res, rej) =>
+          navigator.geolocation.getCurrentPosition(res, rej, { 
+            enableHighAccuracy: true,
+            timeout: 10000 
+          })
+        );
+        checkInLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch (e) {
+        console.warn('Geolocation failed:', e);
+        if (settings.requireGPS) {
+          toast.error('يجب السماح بالوصول للموقع الجغرافي لتسجيل الحضور');
+          return;
+        }
+      }
+
+      if (settings.checkTimeCheating) {
+        try {
+          const res = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC');
+          const data = await res.json();
+          const serverTime = new Date(data.utc_datetime);
+          const localTime = new Date();
+          const diffMs = Math.abs(serverTime.getTime() - localTime.getTime());
+          if (diffMs > 5 * 60 * 1000) { // 5 mins
+            toast.error('تم اكتشاف تلاعب في وقت الجهاز. يرجى ضبط الساعة للوقت الصحيح.');
+            return;
+          }
+        } catch (e) {
+          console.warn('Time check failed, skipping safety check');
+        }
+      }
+
       const record: AttendanceRecord = {
         id: todayRecord?.id || generateId(),
         userId: user.id,
         date: today,
         checkIn: time,
         checkOut: todayRecord?.checkOut,
+        checkInLocation,
         dayType,
         lateMinutes,
         overtimeMinutes: 0,
@@ -63,9 +97,27 @@ export default function AttendancePage() {
       const time = nowTimeStr();
       const { overtimeMinutes } = calcMinutes(todayRecord.checkIn, time, settings);
 
+      let checkOutLocation;
+      try {
+        const pos = await new Promise<GeolocationPosition>((res, rej) =>
+          navigator.geolocation.getCurrentPosition(res, rej, { 
+            enableHighAccuracy: true,
+            timeout: 10000 
+          })
+        );
+        checkOutLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch (e) {
+        console.warn('Geolocation failed:', e);
+        if (settings.requireGPS) {
+          toast.error('يجب السماح بالوصول للموقع الجغرافي لتسجيل الانصراف');
+          return;
+        }
+      }
+
       const record: AttendanceRecord = {
         ...todayRecord,
         checkOut: time,
+        checkOutLocation,
         overtimeMinutes,
       };
 

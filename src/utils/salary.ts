@@ -288,12 +288,26 @@ export function generateId(): string {
  * تاريخ اليوم بصيغة YYYY-MM-DD
  */
 export function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const offset = d.getTimezoneOffset();
+  // Egypt is UTC+2 (or +3 during DST)
+  // For simplicity and to avoid DST issues, we can use Intl.DateTimeFormat
+  return new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'Africa/Cairo', 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit' 
+  }).format(d);
 }
 
 /**
  * وقت الآن بصيغة HH:MM
  */
 export function nowTimeStr(): string {
-  return new Date().toTimeString().slice(0, 5);
+  return new Intl.DateTimeFormat('en-GB', { 
+    timeZone: 'Africa/Cairo', 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false 
+  }).format(new Date());
 }

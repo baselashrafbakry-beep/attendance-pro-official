@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS public.attendance_records (
   )),
   late_minutes      INTEGER DEFAULT 0 CHECK (late_minutes >= 0),
   overtime_minutes  INTEGER DEFAULT 0 CHECK (overtime_minutes >= 0),
+  check_in_location JSONB,
+  check_out_location JSONB,
   note              TEXT,
   is_manual_entry   BOOLEAN DEFAULT FALSE,
   created_at        TIMESTAMPTZ DEFAULT NOW(),

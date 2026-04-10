@@ -37,6 +37,8 @@ export interface AttendanceRecord {
   date: string;          // "YYYY-MM-DD"
   checkIn?: string;      // "HH:MM"
   checkOut?: string;     // "HH:MM"
+  checkInLocation?: { lat: number; lng: number };
+  checkOutLocation?: { lat: number; lng: number };
   dayType: DayType;
   lateMinutes: number;
   overtimeMinutes: number;
@@ -65,6 +67,8 @@ export interface AppSettings {
   insuranceRate: number;        // %
   taxEnabled: boolean;
   taxRate: number;              // %
+  requireGPS: boolean;          // enforce location for attendance
+  checkTimeCheating: boolean;   // verify device time against server
 }
 
 export type LeaveType = 'sick_leave' | 'annual_leave' | 'unpaid_leave' | 'other';
