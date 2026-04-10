@@ -129,7 +129,7 @@ export default function AttendancePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24" dir="rtl">
+    <div className="min-h-screen bg-background pb-40" dir="rtl">
       {/* Header */}
       <div className="bg-card border-b border-border px-4 pt-12 pb-4">
         <div className="flex items-center gap-3">
