@@ -4,7 +4,7 @@
 import type { AppSettings } from '../types';
 
 export const APP_NAME = 'متتبع الحضور والراتب - برو';
-export const APP_VERSION = 'v6.3.0';
+export const APP_VERSION = 'v6.5.0';
 
 export const STORAGE_KEYS = {
   USERS: 'ast_users',
@@ -74,6 +74,7 @@ export const DEPARTMENT_OPTIONS = [
   'المشتريات', 'التسويق', 'تقنية المعلومات', 'الموارد البشرية', 'العمليات', 'أخرى',
 ];
 
+// رابط آخر إصدار APK - يُحدَّث تلقائياً مع كل بناء GitHub Actions
 export const APK_DOWNLOAD_URL = 'https://github.com/baselashrafbakry-beep/attendance-pro-official/releases/latest';
 export const DEVELOPER_NAME = 'م باسل اشرف';
 export const DEVELOPER_PHONE = '01014543845';

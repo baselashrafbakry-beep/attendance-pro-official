@@ -1,5 +1,12 @@
-import { Shield, Star, Info, Download } from 'lucide-react';
+import { Shield, Info, Download, Smartphone } from 'lucide-react';
 import { APP_NAME, APP_VERSION, APK_DOWNLOAD_URL, DEVELOPER_NAME, DEVELOPER_PHONE } from '../constants';
+import { toast } from 'sonner';
+
+function handleApkDownload() {
+  // فتح صفحة التحميل في تبويب جديد
+  window.open(APK_DOWNLOAD_URL, '_blank', 'noopener,noreferrer');
+  toast.info('جارٍ فتح صفحة التحميل…', { duration: 3000 });
+}
 
 export default function AboutPage() {
   return (
@@ -24,15 +31,21 @@ export default function AboutPage() {
         </div>
 
         {/* Android Download Button */}
-        <a 
-          href={APK_DOWNLOAD_URL} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] shadow-lg shadow-primary/20 transition-all"
-        >
-          <Download size={20} />
-          تحميل تطبيق الأندرويد (APK)
-        </a>
+        <div className="w-full space-y-2">
+          <button
+            onClick={handleApkDownload}
+            className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] shadow-lg shadow-primary/20 transition-all"
+          >
+            <Download size={20} />
+            تحميل تطبيق الأندرويد (APK)
+          </button>
+          <div className="flex items-center gap-2 bg-muted/40 border border-border rounded-xl px-4 py-2.5">
+            <Smartphone size={14} className="text-primary shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              سيتم فتح صفحة التحميل — اختر ملف APK من أحدث إصدار
+            </p>
+          </div>
+        </div>
 
         <div className="w-full space-y-3">
           {[
@@ -66,10 +79,7 @@ export default function AboutPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Star size={12} className="text-warning" />
-          <span>مبني بـ React + TypeScript + Supabase</span>
-        </div>
+
       </div>
     </div>
   );
