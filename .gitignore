@@ -2,12 +2,8 @@ node_modules/
 dist/
 .env
 .env.local
-.env.production
-*.local
+*.log
 .DS_Store
-*.pem
-.dart_tool/
-android/
-ios/
+android/app/build/
+android/.idea/caches/
 *.keystore
-*.jks
