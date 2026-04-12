@@ -3,6 +3,7 @@ apply plugin: 'com.android.application'
 android {
     namespace "com.attendance.salarytracker"
     compileSdk rootProject.ext.compileSdkVersion
+
     defaultConfig {
         applicationId "com.attendance.salarytracker"
         minSdk rootProject.ext.minSdkVersion
@@ -14,16 +15,19 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+
     signingConfigs {
         release {
-            if (System.getenv("KEYSTORE_BASE64")) {
-                storeFile file("keystore/release.keystore")
-                storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
-                keyAlias System.getenv("KEY_ALIAS") ?: ""
-                keyPassword System.getenv("KEY_PASSWORD") ?: ""
+            def keystoreFile = file("keystore/release.keystore")
+            if (keystoreFile.exists() && System.getenv("KEYSTORE_PASSWORD")) {
+                storeFile keystoreFile
+                storePassword System.getenv("KEYSTORE_PASSWORD") ?: "Basel1611Basel"
+                keyAlias System.getenv("KEY_ALIAS") ?: "attendance_pro"
+                keyPassword System.getenv("KEY_PASSWORD") ?: "Basel1611Basel"
             }
         }
     }
+
     buildTypes {
         debug {
             debuggable true
@@ -32,15 +36,18 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            if (System.getenv("KEYSTORE_BASE64")) {
+            def keystoreFile = file("keystore/release.keystore")
+            if (keystoreFile.exists()) {
                 signingConfig signingConfigs.release
             }
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
     packagingOptions {
         jniLibs {
             useLegacyPackaging true

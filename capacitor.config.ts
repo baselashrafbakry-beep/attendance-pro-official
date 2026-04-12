@@ -4,13 +4,8 @@ const config: CapacitorConfig = {
   appId: 'com.attendance.salarytracker',
   appName: 'متتبع الحضور والراتب',
   webDir: 'dist',
-  server: {
-    // Production URL — التطبيق يشير للـ Vercel مباشرة
-    // هذا يضمن أن التطبيق يحمّل أحدث إصدار دائماً
-    url: 'https://attendance-salary-tracker-2kgv285go.vercel.app',
-    cleartext: false,
-    androidScheme: 'https',
-  },
+  // بدون server.url = التطبيق يعمل من الـ dist المحلي داخل الـ APK
+  // هذا يجعله يعمل offline وبدون أي قيود على الـ authentication
   android: {
     allowMixedContent: false,
     backgroundColor: '#0f172a',
