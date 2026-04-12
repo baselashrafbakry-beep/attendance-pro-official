@@ -2,43 +2,36 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.attendance.salarytracker',
-  appName: 'متتبع الحضور والراتب - برو',
+  appName: 'متتبع الحضور والراتب',
   webDir: 'dist',
   server: {
-    // Live reload from production URL - keeps app always up-to-date
+    // Production URL - Live reload من Vercel
     url: 'https://attendance-salary-tracker.vercel.app',
     cleartext: false,
+    androidScheme: 'https',
   },
   android: {
     allowMixedContent: false,
     backgroundColor: '#0f172a',
-    minSdkVersion: 23,
-    targetSdkVersion: 34,
+    minWebViewVersion: 80,
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
+      launchAutoHide: true,
       backgroundColor: '#0f172a',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
     },
     StatusBar: {
-      style: 'Dark',
+      style: 'dark',
       backgroundColor: '#0f172a',
     },
     Keyboard: {
       resize: 'body',
       style: 'dark',
       resizeOnFullScreen: true,
-    },
-    PushNotifications: {
-      presentationOptions: ['badge', 'sound', 'alert'],
-    },
-    LocalNotifications: {
-      smallIcon: 'ic_stat_icon_config_sample',
-      iconColor: '#3b82f6',
-      sound: 'beep.wav',
     },
   },
 };
