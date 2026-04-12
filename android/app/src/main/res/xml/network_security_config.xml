@@ -6,8 +6,15 @@
         </trust-anchors>
     </base-config>
     <domain-config cleartextTrafficPermitted="false">
+        <!-- Vercel Production domains -->
         <domain includeSubdomains="true">attendance-salary-tracker.vercel.app</domain>
+        <domain includeSubdomains="true">attendance-salary-tracker-2kgv285go.vercel.app</domain>
         <domain includeSubdomains="true">attendance-salary-tracker-a8f3oxq9s.vercel.app</domain>
+        <!-- Wildcard for any Vercel preview deployments -->
+        <domain includeSubdomains="true">vercel.app</domain>
+        <!-- Supabase -->
         <domain includeSubdomains="true">osaalxaptfshgdlefilx.supabase.co</domain>
+        <!-- Supabase Realtime WebSocket -->
+        <domain includeSubdomains="true">supabase.co</domain>
     </domain-config>
 </network-security-config>

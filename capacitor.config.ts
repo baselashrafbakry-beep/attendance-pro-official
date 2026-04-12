@@ -5,8 +5,9 @@ const config: CapacitorConfig = {
   appName: 'متتبع الحضور والراتب',
   webDir: 'dist',
   server: {
-    // Production URL - Live reload من Vercel
-    url: 'https://attendance-salary-tracker.vercel.app',
+    // Production URL — التطبيق يشير للـ Vercel مباشرة
+    // هذا يضمن أن التطبيق يحمّل أحدث إصدار دائماً
+    url: 'https://attendance-salary-tracker-2kgv285go.vercel.app',
     cleartext: false,
     androidScheme: 'https',
   },
