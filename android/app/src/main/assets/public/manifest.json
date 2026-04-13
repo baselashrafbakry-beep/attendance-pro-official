@@ -1,0 +1,19 @@
+{
+  "name": "متتبع الحضور والراتب",
+  "short_name": "متتبع الراتب",
+  "description": "النظام الإداري المتكامل لتتبع الحضور وحساب الرواتب",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
