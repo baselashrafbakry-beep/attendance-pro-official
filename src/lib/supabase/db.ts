@@ -142,8 +142,9 @@ function toSettings(row: Record<string, unknown>): AppSettings {
     insuranceRate: Number(row.insurance_rate ?? 0),
     taxEnabled: (row.tax_enabled as boolean) ?? false,
     taxRate: Number(row.tax_rate ?? 0),
-    requireGPS: (row.require_gps as boolean) ?? true,
-    checkTimeCheating: (row.check_time_cheating as boolean) ?? true,
+    // الأعمدة الجديدة — قد تكون null إذا لم تُضَف بعد للجدول
+    requireGPS: row.require_gps != null ? (row.require_gps as boolean) : true,
+    checkTimeCheating: row.check_time_cheating != null ? (row.check_time_cheating as boolean) : true,
   };
 }
 
@@ -170,8 +171,8 @@ function settingsToRow(userId: string, settings: AppSettings): Record<string, an
     insurance_rate: settings.insuranceRate,
     tax_enabled: settings.taxEnabled,
     tax_rate: settings.taxRate,
-    require_gps: settings.requireGPS,
-    check_time_cheating: settings.checkTimeCheating,
+    require_gps: settings.requireGPS ?? true,
+    check_time_cheating: settings.checkTimeCheating ?? true,
   };
 }
 
@@ -875,7 +876,7 @@ export const db = {
     ]);
     return {
       app: 'Attendance & Salary Tracker',
-      version: 'v6.2.1',
+      version: 'v6.5.0',
       exportedAt: new Date().toISOString(),
       users,
       attendance,

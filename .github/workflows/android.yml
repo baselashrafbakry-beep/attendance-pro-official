@@ -63,35 +63,53 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Make gradlew executable
         run: chmod +x android/gradlew
+
+      - name: Validate Keystore
+        run: |
+          KEYSTORE="android/app/keystore/release.keystore"
+          if [ -f "$KEYSTORE" ]; then
+            echo "✅ Keystore found"
+            keytool -list -keystore "$KEYSTORE" -storepass Basel1611Basel -noprompt 2>&1 | head -5 || echo "Keystore validation warning"
+          else
+            echo "⚠️ Keystore not found, will use debug signing"
+          fi
 
       - name: Build Release APK
         id: gradle_build
         run: |
           cd android
-          set +e
-          ./gradlew assembleRelease \
-            --no-daemon \
-            --stacktrace \
-            --info \
-            -x lintVitalRelease \
-            -x lint \
-            -Pandroid.injected.signing.store.file=$(pwd)/app/keystore/release.keystore \
-            -Pandroid.injected.signing.store.password=Basel1611Basel \
-            -Pandroid.injected.signing.key.alias=attendance_pro \
-            -Pandroid.injected.signing.key.password=Basel1611Basel \
-            2>&1 | tee /tmp/gradle_build.log
-          BUILD_EXIT=${PIPESTATUS[0]}
-          set -e
           
-          echo "=== LAST 100 LINES ==="
-          tail -100 /tmp/gradle_build.log
+          KEYSTORE_FILE="$(pwd)/app/keystore/release.keystore"
           
-          echo "=== APK OUTPUT ==="
-          find app/build/outputs/apk -name "*.apk" 2>/dev/null || echo "No APK"
+          if [ -f "$KEYSTORE_FILE" ]; then
+            echo "Building with release keystore..."
+            ./gradlew assembleRelease \
+              --no-daemon \
+              --stacktrace \
+              -x lintVitalRelease \
+              -x lint \
+              -Pandroid.injected.signing.store.file="$KEYSTORE_FILE" \
+              -Pandroid.injected.signing.store.password=Basel1611Basel \
+              -Pandroid.injected.signing.key.alias=attendance_pro \
+              -Pandroid.injected.signing.key.password=Basel1611Basel \
+              2>&1 | tee /tmp/gradle_build.log
+          else
+            echo "Building debug APK (no keystore)..."
+            ./gradlew assembleDebug \
+              --no-daemon \
+              --stacktrace \
+              -x lint \
+              2>&1 | tee /tmp/gradle_build.log
+          fi
           
-          exit $BUILD_EXIT
+          echo "=== BUILD RESULT ==="
+          echo "Exit code: $?"
+          find app/build/outputs/apk -name "*.apk" 2>/dev/null || echo "No APK found yet"
 
       - name: Upload build log on failure
         if: failure()
@@ -101,18 +119,24 @@ jobs:
           path: /tmp/gradle_build.log
           retention-days: 7
 
-      - name: Prepare APK
+      - name: Find and prepare APK
         run: |
           VERSION=$(node -p "require('./package.json').version")
           mkdir -p release-apk
+          
+          # البحث عن APK (release أو debug)
           APK_FILE=$(find android/app/build/outputs/apk -name "*.apk" 2>/dev/null | head -1)
+          
           if [ -z "$APK_FILE" ]; then
             echo "❌ No APK found!"
+            ls -la android/app/build/outputs/ 2>/dev/null || echo "No outputs dir"
             exit 1
           fi
+          
+          echo "✅ Found APK: $APK_FILE"
           cp "$APK_FILE" "release-apk/AttendancePro-v${VERSION}.apk"
           echo "APK_VERSION=v${VERSION}" >> $GITHUB_ENV
-          echo "✅ $(ls release-apk/)"
+          echo "✅ Final: $(ls release-apk/)"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

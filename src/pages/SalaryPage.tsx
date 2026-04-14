@@ -14,7 +14,7 @@ import autoTable from 'jspdf-autotable';
 
 export default function SalaryPage() {
   const { user, attendance, settings, salaryComparisons, officialHolidays, addSalaryComparison, deleteSalaryComparison } = useApp();
-  const [selectedPeriod, setSelectedPeriod] = useState(0); // 0 = حالي, -1، -2...
+  const [selectedPeriod, setSelectedPeriod] = useState(0); // 0 = حالي
   const [showAddComparison, setShowAddComparison] = useState(false);
 
   const now = new Date();
@@ -26,7 +26,7 @@ export default function SalaryPage() {
     });
   }, [settings.monthStartDay]);
 
-  const period = periods[-selectedPeriod] || getCurrentPayrollPeriod(settings.monthStartDay);
+  const period = periods[selectedPeriod] || getCurrentPayrollPeriod(settings.monthStartDay);
   const holidayDates = officialHolidays.map(h => h.date);
 
   const breakdown = useMemo(() => {
@@ -92,10 +92,10 @@ export default function SalaryPage() {
           {periods.slice(0, 6).map((p, i) => (
             <button
               key={i}
-              onClick={() => setSelectedPeriod(-i)}
+              onClick={() => setSelectedPeriod(i)}
               className={cn(
                 'shrink-0 px-4 py-2 rounded-xl text-xs font-bold border transition-all',
-                selectedPeriod === -i
+                selectedPeriod === i
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'bg-card text-muted-foreground border-border'
               )}

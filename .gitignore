@@ -7,3 +7,6 @@ dist/
 android/app/build/
 android/.idea/caches/
 *.keystore
+.vercel/.env.development.local
+.vercel/output/
+dist/
