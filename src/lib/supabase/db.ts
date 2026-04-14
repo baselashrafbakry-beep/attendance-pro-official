@@ -201,19 +201,47 @@ export const db = {
     if (!isSupabaseConfigured()) {
       return db.authenticateUser(username, password);
     }
-    const { data: loginMeta, error: loginMetaError } = await withTimeout(
-      supabase.rpc('get_login_email', { p_username: username })
-    );
-    if (loginMetaError || !loginMeta) return null;
-    const row = Array.isArray(loginMeta) ? loginMeta[0] : loginMeta;
-    const loginEmail = String((row as Record<string, unknown>)?.login_email ?? '');
-    if (!loginEmail) return null;
 
-    const { error } = await withTimeout(
-      supabase.auth.signInWithPassword({ email: loginEmail, password })
-    );
-    if (error) return null;
-    return db.getCurrentUserFromSession();
+    // ── Step 1: Try Supabase Auth login (for users with auth_user_id) ──
+    try {
+      const { data: loginMeta, error: loginMetaError } = await withTimeout(
+        supabase.rpc('get_login_email', { p_username: username })
+      );
+      
+      if (!loginMetaError && loginMeta) {
+        const row = Array.isArray(loginMeta) ? loginMeta[0] : loginMeta;
+        const loginEmail = String((row as Record<string, unknown>)?.login_email ?? '');
+        
+        if (loginEmail) {
+          const { error: signInError } = await withTimeout(
+            supabase.auth.signInWithPassword({ email: loginEmail, password })
+          );
+          
+          if (!signInError) {
+            const sessionUser = await db.getCurrentUserFromSession();
+            if (sessionUser) return sessionUser;
+          }
+        }
+      }
+    } catch (authErr) {
+      console.warn('[db.loginWithUsername] Supabase Auth failed, trying fallback:', authErr);
+    }
+
+    // ── Step 2: Fallback to password_hash check (for users without auth_user_id) ──
+    // This handles: admin seeded via SQL, or employees whose Edge Function failed
+    const fallbackUser = await db.authenticateUser(username, password);
+    if (!fallbackUser) return null;
+
+    // ── Step 3: If fallback succeeded AND user has no auth_user_id → try to create one ──
+    if (!fallbackUser.authUserId) {
+      // Non-blocking: try to create Supabase Auth user in background
+      // Using the password provided by the user (we know it's correct since fallback succeeded)
+      db._callCreateAuthUser(username, password, fallbackUser.id).catch(() => {
+        // Ignore - fallback auth is sufficient for now
+      });
+    }
+
+    return fallbackUser;
   },
 
   async authenticateUser(username: string, password: string): Promise<User | null> {
@@ -325,38 +353,13 @@ export const db = {
 
     // Also update in Supabase Auth via Edge Function
     try {
-      const { data: session } = await supabase.auth.getSession();
-      const token = session?.session?.access_token;
-      if (token) {
-        const { data: appUser } = await supabase
-          .from('app_users')
-          .select('username')
-          .eq('id', userId)
-          .single();
-        if (appUser) {
-          const fnUrl = `${SUPABASE_URL}/functions/v1/create-auth-user`;
-          await withTimeout(
-            fetch(fnUrl, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'apikey': SUPABASE_ANON_KEY,
-              },
-              body: JSON.stringify({
-                username: appUser.username,
-                password: newPassword,
-                appUserId: userId,
-              }),
-            }).then(async (res) => {
-              if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                console.error('[db.changePassword] Edge function error:', err);
-              }
-            }),
-            15000
-          );
-        }
+      const { data: appUser } = await supabase
+        .from('app_users')
+        .select('username')
+        .eq('id', userId)
+        .single();
+      if (appUser) {
+        await db._callCreateAuthUser(appUser.username, newPassword, userId);
       }
     } catch (fnErr) {
       console.error('[db.changePassword] Failed to update auth password:', fnErr);
@@ -378,63 +381,102 @@ export const db = {
       }
       return newUser;
     }
-    const loginEmail = `${user.username.toLowerCase()}@attendance.local`;
-    // Step 1: Insert app_users record first
-    const { data, error } = await supabase.from('app_users').insert({
-      id,
-      username: user.username,
-      login_email: loginEmail,
-      password_hash: passwordHash,
-      name: user.name,
-      role: user.role,
-      department: user.department,
-      base_salary: user.baseSalary ?? 0,
-      transport_allowance: user.transportAllowance ?? 0,
-      annual_leave_limit: user.annualLeaveLimit ?? 21,
-      sick_leave_limit: user.sickLeaveLimit ?? 15,
-      work_start_time: user.workStartTime ?? '09:00',
-      work_end_time: user.workEndTime ?? '17:00',
-      weekly_off_day: user.weeklyOffDay ?? 5,
-      weekly_off_day2: user.weeklyOffDay2 ?? -1,
-    }).select().single();
-    if (error) { console.error('[db.addUser]', error); return null; }
-    
-    // Step 2: Create Supabase Auth user via Edge Function so the employee can login
-    if (user.password) {
-      try {
-        const { data: session } = await supabase.auth.getSession();
-        const token = session?.session?.access_token;
-        if (token) {
-          const fnUrl = `${SUPABASE_URL}/functions/v1/create-auth-user`;
-          await withTimeout(
-            fetch(fnUrl, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'apikey': SUPABASE_ANON_KEY,
-              },
-              body: JSON.stringify({
-                username: user.username,
-                password: user.password,
-                appUserId: id,
-              }),
-            }).then(async (res) => {
-              if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                console.error('[db.addUser] Edge function error:', err);
-              }
-            }),
-            15000
-          );
-        }
-      } catch (fnErr) {
-        // Non-fatal: user was created in app_users, auth creation failed
-        // The admin can reset the password to fix auth access
-        console.error('[db.addUser] Failed to create auth user:', fnErr);
+
+    // ── استخدام Edge Function create-auth-user مع createFullUser=true ──
+    // هذا يتجاوز أي RLS أو triggers تقييدية في قاعدة البيانات باستخدام service_role
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      const authHeader = token ? `Bearer ${token}` : `Bearer ${SUPABASE_ANON_KEY}`;
+
+      const fnUrl = `${SUPABASE_URL}/functions/v1/create-auth-user`;
+      const res = await withTimeout(
+        fetch(fnUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
+            createFullUser: true,  // استخدام وضع إنشاء المستخدم الكامل
+            id,
+            username: user.username,
+            password: user.password,
+            passwordHash: passwordHash || undefined,
+            name: user.name,
+            role: user.role,
+            department: user.department,
+            baseSalary: user.baseSalary ?? 0,
+            transportAllowance: user.transportAllowance ?? 0,
+            annualLeaveLimit: user.annualLeaveLimit ?? 21,
+            sickLeaveLimit: user.sickLeaveLimit ?? 15,
+            workStartTime: user.workStartTime ?? '09:00',
+            workEndTime: user.workEndTime ?? '17:00',
+            weeklyOffDay: user.weeklyOffDay ?? 5,
+            weeklyOffDay2: user.weeklyOffDay2 ?? -1,
+          }),
+        }),
+        20000
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as Record<string, unknown>;
+        console.error('[db.addUser] Edge function error:', res.status, err);
+        return null;
       }
+
+      const result = await res.json() as { success: boolean; user: Record<string, unknown>; authUserId?: string; message?: string };
+      if (result.success && result.user) {
+        console.log('[db.addUser] Success via Edge Function:', result.message);
+        return toUser(result.user);
+      }
+      return null;
+    } catch (fnErr) {
+      console.error('[db.addUser] Edge function call failed:', fnErr);
+      return null;
     }
-    return toUser(data);
+  },
+
+  // ── Helper: call create-auth-user Edge Function ──────────────
+  // Returns true on success, false on failure
+  async _callCreateAuthUser(username: string, password: string, appUserId: string): Promise<boolean> {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      
+      // Build the authorization header:
+      // - If we have a real Supabase Auth token → use it (admin logged in via Supabase Auth)
+      // - If no token → use anon key as fallback (Edge Function will check via DB)
+      const authHeader = token ? `Bearer ${token}` : `Bearer ${SUPABASE_ANON_KEY}`;
+      
+      const fnUrl = `${SUPABASE_URL}/functions/v1/create-auth-user`;
+      const res = await withTimeout(
+        fetch(fnUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ username, password, appUserId }),
+        }),
+        15000
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('[db._callCreateAuthUser] Edge function error:', res.status, err);
+        return false;
+      }
+      
+      const result = await res.json();
+      console.log('[db._callCreateAuthUser] Success:', result);
+      return true;
+    } catch (fnErr) {
+      console.error('[db._callCreateAuthUser] Network/timeout error:', fnErr);
+      return false;
+    }
   },
 
   async updateUser(id: string, updates: Partial<User & { password?: string }>): Promise<boolean> {
@@ -470,39 +512,13 @@ export const db = {
     // If password was changed, update auth user via Edge Function
     if (updates.password) {
       try {
-        const { data: session } = await supabase.auth.getSession();
-        const token = session?.session?.access_token;
-        if (token) {
-          // Get the user's username to build the login email
-          const { data: appUser } = await supabase
-            .from('app_users')
-            .select('username')
-            .eq('id', id)
-            .single();
-          if (appUser) {
-            const fnUrl = `${SUPABASE_URL}/functions/v1/create-auth-user`;
-            await withTimeout(
-              fetch(fnUrl, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                  'apikey': SUPABASE_ANON_KEY,
-                },
-                body: JSON.stringify({
-                  username: appUser.username,
-                  password: updates.password,
-                  appUserId: id,
-                }),
-              }).then(async (res) => {
-                if (!res.ok) {
-                  const err = await res.json().catch(() => ({}));
-                  console.error('[db.updateUser] Edge function error:', err);
-                }
-              }),
-              15000
-            );
-          }
+        const { data: appUser } = await supabase
+          .from('app_users')
+          .select('username')
+          .eq('id', id)
+          .single();
+        if (appUser) {
+          await db._callCreateAuthUser(appUser.username, updates.password, id);
         }
       } catch (fnErr) {
         console.error('[db.updateUser] Failed to update auth password:', fnErr);

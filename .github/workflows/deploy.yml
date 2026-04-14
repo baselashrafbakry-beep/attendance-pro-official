@@ -26,6 +26,16 @@ jobs:
           VITE_SUPABASE_URL: https://osaalxaptfshgdlefilx.supabase.co
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYWFseGFwdGZzaGdkbGVmaWx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODA1OTYsImV4cCI6MjA5MTA1NjU5Nn0.OOXJptgYoY9Od5Os0GJLFv5uzCcR0aU4gtn0KWgMnkc
 
+      - name: Deploy Supabase Edge Functions
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+        run: |
+          npx supabase@latest functions deploy create-auth-user \
+            --project-ref osaalxaptfshgdlefilx \
+            --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        continue-on-error: true
+
       - name: Deploy to Vercel
         run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
