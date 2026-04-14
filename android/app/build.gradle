@@ -8,7 +8,7 @@ android {
         applicationId "com.attendance.salarytracker"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 6
+        versionCode 7
         versionName "6.5.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -16,30 +16,14 @@ android {
         }
     }
 
-    signingConfigs {
-        release {
-            def keystoreFile = file("keystore/release.keystore")
-            if (keystoreFile.exists() && System.getenv("KEYSTORE_PASSWORD")) {
-                storeFile keystoreFile
-                storePassword System.getenv("KEYSTORE_PASSWORD") ?: "Basel1611Basel"
-                keyAlias System.getenv("KEY_ALIAS") ?: "attendance_pro"
-                keyPassword System.getenv("KEY_PASSWORD") ?: "Basel1611Basel"
-            }
-        }
-    }
-
     buildTypes {
-        debug {
-            debuggable true
-            minifyEnabled false
-        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            def keystoreFile = file("keystore/release.keystore")
-            if (keystoreFile.exists()) {
-                signingConfig signingConfigs.release
-            }
+            // signing يتم عبر Gradle CLI flags
+        }
+        debug {
+            debuggable true
         }
     }
 

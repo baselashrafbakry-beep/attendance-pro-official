@@ -37,41 +37,24 @@ jobs:
           VITE_SUPABASE_URL: https://osaalxaptfshgdlefilx.supabase.co
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zYWFseGFwdGZzaGdkbGVmaWx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODA1OTYsImV4cCI6MjA5MTA1NjU5Nn0.OOXJptgYoY9Od5Os0GJLFv5uzCcR0aU4gtn0KWgMnkc
 
-      - name: Copy web assets to Android manually
+      - name: Copy web assets to Android
         run: |
-          echo "=== Copying dist to Android assets ==="
           mkdir -p android/app/src/main/assets/public
           cp -r dist/. android/app/src/main/assets/public/
-          
-          echo "=== Creating capacitor.config.json ==="
+          # إنشاء capacitor.config.json
           node -e "
-          const cfg = require('./capacitor.config.ts') || {};
-          const fs = require('fs');
-          const config = {
-            appId: 'com.attendance.salarytracker',
-            appName: 'متتبع الحضور والراتب',
-            webDir: 'dist',
-            android: { allowMixedContent: false, backgroundColor: '#0f172a', minWebViewVersion: 80 },
-            plugins: {
-              SplashScreen: { launchShowDuration: 2000, launchAutoHide: true, backgroundColor: '#0f172a', androidSplashResourceName: 'splash', androidScaleType: 'CENTER_CROP', showSpinner: false },
-              StatusBar: { style: 'dark', backgroundColor: '#0f172a' },
-              Keyboard: { resize: 'body', style: 'dark', resizeOnFullScreen: true }
-            }
-          };
-          fs.writeFileSync('android/app/src/main/assets/capacitor.config.json', JSON.stringify(config, null, 2));
-          console.log('capacitor.config.json created');
-          " || echo '{"appId":"com.attendance.salarytracker","appName":"متتبع الحضور والراتب","webDir":"dist"}' > android/app/src/main/assets/capacitor.config.json
-          
-          echo "=== Adding Capacitor bridge files ==="
-          # نضيف الـ cordova compatibility files
+            const cfg = require('./capacitor.config.ts').default || {};
+            const json = {
+              appId: 'com.attendance.salarytracker',
+              appName: 'متتبع الحضور والراتب',
+              webDir: 'dist'
+            };
+            require('fs').writeFileSync('android/app/src/main/assets/capacitor.config.json', JSON.stringify(json, null, 2));
+          " 2>/dev/null || echo '{"appId":"com.attendance.salarytracker","appName":"متتبع الحضور والراتب","webDir":"dist"}' > android/app/src/main/assets/capacitor.config.json
+          echo "✅ Assets copied: $(ls android/app/src/main/assets/public/ | wc -l) files"
+          # إنشاء cordova placeholders
           echo "" > android/app/src/main/assets/public/cordova.js
-          echo "cordova_plugins.js contents" > android/app/src/main/assets/public/cordova_plugins.js
-          
-          echo "=== Verification ==="
-          echo "Files in android assets:"
-          ls android/app/src/main/assets/
-          echo "Files in public:"
-          ls android/app/src/main/assets/public/ | head -10
+          echo "cordova.define('cordova/plugin_list', function(require, exports, module) { module.exports = []; module.exports.metadata = {}; });" > android/app/src/main/assets/public/cordova_plugins.js
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -91,33 +74,46 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
+      - name: Verify Android project structure
+        run: |
+          echo "=== Project Structure ==="
+          ls android/
+          echo "=== App dir ==="
+          ls android/app/
+          echo "=== Gradle version ==="
+          cat android/gradle/wrapper/gradle-wrapper.properties | grep distributionUrl
+          echo "=== node_modules/@capacitor/android ==="
+          ls node_modules/@capacitor/android/capacitor/ | head -5
+          echo "=== Keystore ==="
+          ls -la android/app/keystore/
+
       - name: Build Release APK
         run: |
           cd android
           ./gradlew assembleRelease \
             --no-daemon \
+            --stacktrace \
             -x lintVitalRelease \
             -x lint \
             -Pandroid.injected.signing.store.file=$(pwd)/app/keystore/release.keystore \
             -Pandroid.injected.signing.store.password=Basel1611Basel \
             -Pandroid.injected.signing.key.alias=attendance_pro \
             -Pandroid.injected.signing.key.password=Basel1611Basel
-          echo "=== APK files ==="
-          find app/build/outputs/apk -name "*.apk" 2>/dev/null
+          echo "=== APK Output ==="
+          find app/build/outputs/apk -name "*.apk" 2>/dev/null || echo "No APK found"
 
-      - name: Prepare APK for release
+      - name: Prepare APK
         run: |
           VERSION=$(node -p "require('./package.json').version")
           mkdir -p release-apk
           APK_FILE=$(find android/app/build/outputs/apk -name "*.apk" 2>/dev/null | head -1)
           if [ -z "$APK_FILE" ]; then
             echo "❌ No APK found!"
-            find android/app/build -type f 2>/dev/null | head -20
             exit 1
           fi
-          echo "✅ Found APK: $APK_FILE"
           cp "$APK_FILE" "release-apk/AttendancePro-v${VERSION}.apk"
           echo "APK_VERSION=v${VERSION}" >> $GITHUB_ENV
+          echo "✅ APK ready: release-apk/AttendancePro-v${VERSION}.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
