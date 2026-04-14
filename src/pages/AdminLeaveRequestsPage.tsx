@@ -122,8 +122,10 @@ function LeaveCard({ leave, empName, expanded, notes, onToggle, onNotesChange, o
 }) {
   const statusColors = { pending: 'warning', approved: 'success', rejected: 'destructive' };
   const color = statusColors[leave.status];
-  const days = Math.ceil(
-    (new Date(leave.endDate).getTime() - new Date(leave.startDate).getTime()) / (1000 * 60 * 60 * 24)
+  // حساب عدد الأيام بدون UTC offset — نفسّر التاريخ كـ local date
+  const parseDate = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const days = Math.round(
+    (parseDate(leave.endDate).getTime() - parseDate(leave.startDate).getTime()) / (1000 * 60 * 60 * 24)
   ) + 1;
 
   return (

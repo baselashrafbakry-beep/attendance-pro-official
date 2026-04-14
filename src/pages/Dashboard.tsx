@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../hooks/useApp';
 import { Clock, Calendar, DollarSign, FileText, TrendingUp, TrendingDown, AlertCircle, CheckCircle, LogOut, RefreshCw, User } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -7,7 +7,13 @@ import { calculateSalary, getCurrentPayrollPeriod, formatCurrency, todayStr } fr
 import { DAY_TYPE_LABELS, DEVELOPER_NAME, DEVELOPER_PHONE } from '../constants';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { user, attendance, settings, leaveRequests, officialHolidays, syncFromCloud, isSyncing, logout } = useApp();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const today = todayStr();
   const todayRecord = attendance.find(r => r.userId === user?.id && r.date === today);
@@ -47,7 +53,7 @@ export default function Dashboard() {
               <RefreshCw size={16} className={cn(isSyncing && 'animate-spin')} />
             </button>
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center text-destructive hover:bg-destructive/20 transition-all"
             >
               <LogOut size={16} />

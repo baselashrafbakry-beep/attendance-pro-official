@@ -1,5 +1,5 @@
 // ============================================================
-// Constants — Attendance & Salary Tracker v6.2
+// Constants — Attendance & Salary Tracker v6.5
 // ============================================================
 import type { AppSettings } from '../types';
 

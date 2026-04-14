@@ -14,9 +14,18 @@ export default function AdminUsersPage() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [fixingAuth, setFixingAuth] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const employees = users.filter(u => u.role === 'employee');
   const admins = users.filter(u => u.role === 'admin');
+
+  const filteredUsers = search.trim()
+    ? users.filter(u =>
+        u.name.includes(search) ||
+        u.username.toLowerCase().includes(search.toLowerCase()) ||
+        (u.department || '').includes(search)
+      )
+    : users;
 
   const handleDelete = async (u: User) => {
     if (u.role === 'admin') {
@@ -59,7 +68,10 @@ export default function AdminUsersPage() {
             </div>
             <div>
               <h1 className="text-lg font-black text-foreground">إدارة الموظفين</h1>
-              <p className="text-xs text-muted-foreground">{employees.length} موظف، {admins.length} مدير</p>
+              <p className="text-xs text-muted-foreground">
+              {employees.length} موظف، {admins.length} مدير
+              {search.trim() && ` · ${filteredUsers.length} نتيجة`}
+            </p>
             </div>
           </div>
           <button
@@ -71,6 +83,21 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="px-4 pt-3 pb-1">
+        <div className="relative">
+          <svg className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="بحث بالاسم أو اسم المستخدم أو القسم..."
+            className="w-full bg-muted/50 border border-border rounded-xl px-4 py-2.5 text-sm pe-10 focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+        </div>
+      </div>
+
       {/* Users List */}
       <div className="px-4 py-4 space-y-3">
         {users.length === 0 ? (
@@ -79,7 +106,7 @@ export default function AdminUsersPage() {
             <p className="text-sm text-muted-foreground">لا توجد مستخدمون</p>
           </div>
         ) : (
-          users
+          filteredUsers
             .sort((a, b) => {
               if (a.role === 'admin' && b.role !== 'admin') return -1;
               if (a.role !== 'admin' && b.role === 'admin') return 1;
@@ -107,18 +134,24 @@ export default function AdminUsersPage() {
           onClose={() => { setShowForm(false); setEditUser(null); }}
           onSave={async (data) => {
             let ok = false;
-            if (editUser) {
-              ok = await updateUser(editUser.id, data);
-              if (ok) toast.success('تم تحديث بيانات الموظف بنجاح');
-            } else {
-              ok = await addUser(data as User & { password: string });
-              if (ok) toast.success('✅ تم إضافة الموظف وإنشاء حساب تسجيل الدخول بنجاح!');
+            try {
+              if (editUser) {
+                ok = await updateUser(editUser.id, data);
+                if (ok) toast.success('تم تحديث بيانات الموظف بنجاح');
+                else toast.error('حدث خطأ في التحديث');
+              } else {
+                ok = await addUser(data as User & { password: string });
+                if (ok) toast.success('✅ تم إضافة الموظف وإنشاء حساب تسجيل الدخول بنجاح!');
+                else toast.error('فشل إضافة الموظف. تحقق من البيانات المدخلة.');
+              }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
+              toast.error(msg);
+              return; // لا نغلق النموذج عند الخطأ
             }
             if (ok) {
               setShowForm(false);
               setEditUser(null);
-            } else {
-              toast.error('حدث خطأ، حاول مرة أخرى');
             }
           }}
         />

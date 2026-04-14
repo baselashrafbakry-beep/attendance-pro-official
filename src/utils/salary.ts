@@ -1,5 +1,5 @@
 // ============================================================
-// حسابات الراتب — Salary Calculator v6.2
+// حسابات الراتب — Salary Calculator v6.5
 // ============================================================
 import type { AttendanceRecord, AppSettings, SalaryBreakdown } from '../types';
 import { MONTHS_ARABIC } from '../constants';
@@ -74,10 +74,11 @@ export function getMonthRange(year: number, month: number, monthStartDay: number
   }
 
   // الشهر 0-based في JS
+  // new Date(y, m-1, startDay) يُعالج تلقائياً overflow (e.g. month=13)
   const start = new Date(year, month - 1, monthStartDay);
   const end = new Date(year, month, monthStartDay - 1);
 
-  // label مثل "مارس 2025"
+  // label مثل "مارس 2025" — يستخدم تاريخ النهاية لأنه الشهر المرئي
   const label = `${MONTHS_ARABIC[end.getMonth()]} ${end.getFullYear()}`;
 
   return { start, end, label };

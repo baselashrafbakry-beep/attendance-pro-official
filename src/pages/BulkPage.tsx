@@ -22,13 +22,24 @@ export default function BulkPage() {
 
   const generateDays = () => {
     const [year, mon] = month.split('-').map(Number);
-    const start = settings.monthStartDay;
+    const startDay = settings.monthStartDay;
     
     const dates: string[] = [];
-    // من يوم البداية في الشهر الماضي إلى يوم البداية-1 هذا الشهر
-    const d = new Date(year, mon - 2, start); // الشهر الماضي
-    const endD = new Date(year, mon - 1, start - 1);
-    while (d <= endD) {
+    let startDate: Date;
+    let endDate: Date;
+
+    if (startDay <= 1) {
+      // شهر ميلادي كامل من اليوم الأول
+      startDate = new Date(year, mon - 1, 1);
+      endDate = new Date(year, mon, 0); // آخر يوم في الشهر
+    } else {
+      // من يوم البداية في الشهر الماضي إلى يوم البداية-1 هذا الشهر
+      startDate = new Date(year, mon - 2, startDay); // الشهر الماضي
+      endDate = new Date(year, mon - 1, startDay - 1);
+    }
+
+    const d = new Date(startDate);
+    while (d <= endDate) {
       dates.push(formatLocalDate(d));
       d.setDate(d.getDate() + 1);
     }

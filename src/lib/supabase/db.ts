@@ -411,6 +411,17 @@ export const db = {
 
     if (error) {
       console.error('[db.addUser] Insert error:', error);
+      // رسائل خطأ واضحة للمشاكل الشائعة
+      if (error.code === '23505') {
+        // unique_violation — اسم المستخدم أو البريد الإلكتروني مكرر
+        if (error.message?.includes('username')) {
+          throw new Error('اسم المستخدم موجود بالفعل. اختر اسماً مختلفاً.');
+        }
+        if (error.message?.includes('login_email')) {
+          throw new Error('البريد الإلكتروني مستخدم بالفعل.');
+        }
+        throw new Error('البيانات مكررة. تحقق من اسم المستخدم.');
+      }
       return null;
     }
 

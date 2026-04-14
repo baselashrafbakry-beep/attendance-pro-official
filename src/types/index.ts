@@ -1,5 +1,5 @@
 // ============================================================
-// Types — Attendance & Salary Tracker v6.2
+// Types — Attendance & Salary Tracker v6.5
 // ============================================================
 
 export type UserRole = 'admin' | 'employee';

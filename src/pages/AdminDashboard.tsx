@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../hooks/useApp';
 import { Users, Clock, DollarSign, FileText, TrendingUp, AlertCircle, LogOut, RefreshCw, Calendar } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -9,7 +9,13 @@ import type { AppSettings } from '../types';
 import { DEVELOPER_NAME, DEVELOPER_PHONE } from '../constants';
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const { user, users, attendance, leaveRequests, officialHolidays, settings, isSyncing, syncFromCloud, logout } = useApp();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const period = getCurrentPayrollPeriod(settings.monthStartDay);
   const holidayDates = officialHolidays.map(h => h.date);
@@ -89,7 +95,7 @@ export default function AdminDashboard() {
               className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-all">
               <RefreshCw size={16} className={cn(isSyncing && 'animate-spin')} />
             </button>
-            <button onClick={logout}
+            <button onClick={handleLogout}
               className="w-9 h-9 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-all">
               <LogOut size={16} />
             </button>

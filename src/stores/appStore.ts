@@ -164,12 +164,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       // best effort signout
     });
     ls.remove(STORAGE_KEYS.CURRENT_USER);
+    // مسح جميع البيانات المرتبطة بالمستخدم من الذاكرة
     set({
       user: null,
+      users: [],
       attendance: [],
       settings: { ...DEFAULT_SETTINGS },
       leaveRequests: [],
+      officialHolidays: [],
       salaryComparisons: [],
+      syncError: null,
+      lastSync: null,
     });
   },
 
@@ -260,6 +265,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   addUser: async (userWithPassword) => {
     const { password, ...rest } = userWithPassword;
     const id = `user_${Date.now()}`;
+    // db.addUser قد يرمي استثناء في حالة unique constraint — نُعيد الرمي لإظهار رسالة للمستخدم
     const result = await db.addUser({ ...rest, password }, id);
     if (!result) return false;
     const users = await db.getUsers();

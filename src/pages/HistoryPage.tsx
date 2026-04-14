@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../hooks/useApp';
-import { Calendar, Search, Filter, Trash2, Edit3, X, Check } from 'lucide-react';
+import { Calendar, Search, Filter, Trash2, Edit3, X, Check, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { DAY_TYPE_LABELS, MONTHS_ARABIC } from '../constants';
 import type { AttendanceRecord, DayType } from '../types';
@@ -313,9 +313,4 @@ function EditModal({ record, settings, onClose, onSave }: {
   );
 }
 
-// حل مشكلة import
-const Loader2 = ({ size, className }: { size: number; className?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
-    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-  </svg>
-);
+

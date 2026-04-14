@@ -345,7 +345,7 @@ function ChangePasswordForm({ userId, onClose }: { userId: string; onClose: () =
   const handleSave = async () => {
     if (!current || !newPass || !confirm) { toast.error('جميع الحقول مطلوبة'); return; }
     if (newPass !== confirm) { toast.error('كلمتا المرور غير متطابقتان'); return; }
-    if (newPass.length < 4) { toast.error('كلمة المرور يجب أن تكون 4 أحرف على الأقل'); return; }
+    if (newPass.length < 6) { toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
     setLoading(true);
     const valid = await db.verifyPassword(userId, current);
     if (!valid) { toast.error('كلمة المرور الحالية غير صحيحة'); setLoading(false); return; }
