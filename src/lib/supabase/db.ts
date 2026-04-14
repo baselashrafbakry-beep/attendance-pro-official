@@ -384,63 +384,49 @@ export const db = {
       return newUser;
     }
 
-    // ── إنشاء المستخدم كاملاً عبر Edge Function (service_role) ──
-    // الـ Edge Function تتجاوز RLS وتتعامل مع الـ trigger
-    // وتُنشئ Supabase Auth user في نفس الوقت
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      const token = session?.session?.access_token;
-      const authHeader = token ? `Bearer ${token}` : `Bearer ${SUPABASE_ANON_KEY}`;
+    // ── نهج ثنائي: إدراج في DB ثم إنشاء Supabase Auth ──
+    // 1) الـ trigger يشترط password_text → نُرسله في الإدراج
+    // 2) Edge Function تُنشئ Supabase Auth user (المستخدم يمكنه تسجيل الدخول)
+    const loginEmail = `${user.username.toLowerCase()}@attendance.local`;
 
-      const fnUrl = `${SUPABASE_URL}/functions/v1/create-auth-user`;
-      const res = await withTimeout(
-        fetch(fnUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': authHeader,
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({
-            createFullUser: true,
-            id,
-            username: user.username,
-            password: user.password,
-            passwordHash,
-            name: user.name,
-            role: user.role,
-            department: user.department,
-            baseSalary: user.baseSalary ?? 0,
-            transportAllowance: user.transportAllowance ?? 0,
-            annualLeaveLimit: user.annualLeaveLimit ?? 21,
-            sickLeaveLimit: user.sickLeaveLimit ?? 15,
-            workStartTime: user.workStartTime ?? '09:00',
-            workEndTime: user.workEndTime ?? '17:00',
-            weeklyOffDay: user.weeklyOffDay ?? 5,
-            weeklyOffDay2: user.weeklyOffDay2 ?? -1,
-          }),
-        }),
-        20000
-      );
+    // ── Step 1: Insert user into app_users (trigger requires password_text) ──
+    const { data, error } = await supabase.from('app_users').insert({
+      id,
+      username: user.username,
+      login_email: loginEmail,
+      password_hash: passwordHash,
+      password_text: user.password,   // ← الـ trigger يطلبه - مُخزَّن مشفراً بعد الإدراج
+      name: user.name,
+      role: user.role,
+      department: user.department,
+      base_salary: user.baseSalary ?? 0,
+      transport_allowance: user.transportAllowance ?? 0,
+      annual_leave_limit: user.annualLeaveLimit ?? 21,
+      sick_leave_limit: user.sickLeaveLimit ?? 15,
+      work_start_time: user.workStartTime ?? '09:00',
+      work_end_time: user.workEndTime ?? '17:00',
+      weekly_off_day: user.weeklyOffDay ?? 5,
+      weekly_off_day2: user.weeklyOffDay2 ?? -1,
+    }).select().single();
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        console.error('[db.addUser] Edge Function error:', res.status, errData);
-        return null;
-      }
-
-      const result = await res.json();
-      if (!result.success || !result.user) {
-        console.error('[db.addUser] Edge Function returned failure:', result);
-        return null;
-      }
-
-      console.log('[db.addUser] User created successfully via Edge Function');
-      return toUser(result.user);
-    } catch (fnErr) {
-      console.error('[db.addUser] Edge Function call failed:', fnErr);
+    if (error) {
+      console.error('[db.addUser] Insert error:', error);
       return null;
     }
+
+    // ── Step 2: Create Supabase Auth user via Edge Function (async, non-blocking) ──
+    // هذا يُتيح تسجيل الدخول عبر Supabase Auth بدلاً من password_hash فقط
+    if (user.password) {
+      db._callCreateAuthUser(user.username, user.password, id).then(success => {
+        if (success) {
+          console.log('[db.addUser] Supabase Auth user created → full login enabled');
+        } else {
+          console.warn('[db.addUser] Auth creation failed → fallback login via password_hash');
+        }
+      }).catch(() => { /* non-fatal */ });
+    }
+
+    return toUser(data);
   },
 
   // ── Helper: call create-auth-user Edge Function ──────────────
