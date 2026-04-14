@@ -1,6 +1,6 @@
 // ============================================================
 // Database Layer — كل عمليات قاعدة البيانات هنا
-// v6.2 — Supabase + Fallback to localStorage
+// v6.5 — Supabase + Fallback to localStorage
 // ============================================================
 import { supabase, isSupabaseConfigured, SUPABASE_URL, SUPABASE_ANON_KEY } from './client';
 import type {
@@ -43,6 +43,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs = NETWORK_TIMEOUT_M
 }
 
 // تحويل من snake_case (Supabase) إلى camelCase (App)
+// ⚠️ أمان: لا يُعيد password_text أو password_hash أبداً
 function toUser(row: Record<string, unknown>): User {
   return {
     id: row.id as string,
@@ -61,6 +62,7 @@ function toUser(row: Record<string, unknown>): User {
     weeklyOffDay: (row.weekly_off_day as number) ?? 5,
     weeklyOffDay2: (row.weekly_off_day2 as number) ?? -1,
     joinedDate: row.joined_date as string | undefined,
+    // ⚠️ لا تُضف password_text أو password_hash هنا — بيانات حساسة لا تُعيدها للواجهة
   };
 }
 
@@ -382,8 +384,9 @@ export const db = {
       return newUser;
     }
 
-    // ── استخدام Edge Function create-auth-user مع createFullUser=true ──
-    // هذا يتجاوز أي RLS أو triggers تقييدية في قاعدة البيانات باستخدام service_role
+    // ── إنشاء المستخدم كاملاً عبر Edge Function (service_role) ──
+    // الـ Edge Function تتجاوز RLS وتتعامل مع الـ trigger
+    // وتُنشئ Supabase Auth user في نفس الوقت
     try {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
@@ -399,11 +402,11 @@ export const db = {
             'apikey': SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({
-            createFullUser: true,  // استخدام وضع إنشاء المستخدم الكامل
+            createFullUser: true,
             id,
             username: user.username,
             password: user.password,
-            passwordHash: passwordHash || undefined,
+            passwordHash,
             name: user.name,
             role: user.role,
             department: user.department,
@@ -421,19 +424,21 @@ export const db = {
       );
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as Record<string, unknown>;
-        console.error('[db.addUser] Edge function error:', res.status, err);
+        const errData = await res.json().catch(() => ({}));
+        console.error('[db.addUser] Edge Function error:', res.status, errData);
         return null;
       }
 
-      const result = await res.json() as { success: boolean; user: Record<string, unknown>; authUserId?: string; message?: string };
-      if (result.success && result.user) {
-        console.log('[db.addUser] Success via Edge Function:', result.message);
-        return toUser(result.user);
+      const result = await res.json();
+      if (!result.success || !result.user) {
+        console.error('[db.addUser] Edge Function returned failure:', result);
+        return null;
       }
-      return null;
+
+      console.log('[db.addUser] User created successfully via Edge Function');
+      return toUser(result.user);
     } catch (fnErr) {
-      console.error('[db.addUser] Edge function call failed:', fnErr);
+      console.error('[db.addUser] Edge Function call failed:', fnErr);
       return null;
     }
   },
