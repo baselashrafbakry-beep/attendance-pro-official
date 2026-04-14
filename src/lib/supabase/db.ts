@@ -412,6 +412,11 @@ export const db = {
       work_end_time: user.workEndTime ?? '17:00',
       weekly_off_day: user.weeklyOffDay ?? 5,
       weekly_off_day2: user.weeklyOffDay2 ?? -1,
+      // حقول الموقع الجغرافي (اختيارية)
+      ...(user.workLocationLat != null ? { work_location_lat: user.workLocationLat } : {}),
+      ...(user.workLocationLng != null ? { work_location_lng: user.workLocationLng } : {}),
+      ...(user.workLocationRadius != null ? { work_location_radius: user.workLocationRadius } : {}),
+      ...(user.workLocationName != null ? { work_location_name: user.workLocationName } : {}),
     }).select().single();
 
     if (error) {

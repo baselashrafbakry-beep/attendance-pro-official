@@ -7,13 +7,18 @@ import { LEAVE_TYPE_LABELS, LEAVE_STATUS_LABELS } from '../constants';
 import { generateId } from '../utils/salary';
 import { toast } from 'sonner';
 
-// حساب عدد أيام الإجازة المستخدمة حسب النوع
+// حساب عدد أيام الإجازة المستخدمة حسب النوع (بدون UTC offset)
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function countUsedLeaveDays(leaves: LeaveRequest[], userId: string, type: LeaveType): number {
   return leaves
     .filter(l => l.userId === userId && l.leaveType === type && l.status === 'approved')
     .reduce((sum, l) => {
-      const days = Math.ceil(
-        (new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / (1000 * 60 * 60 * 24)
+      const days = Math.round(
+        (parseLocalDate(l.endDate).getTime() - parseLocalDate(l.startDate).getTime()) / (1000 * 60 * 60 * 24)
       ) + 1;
       return sum + days;
     }, 0);
@@ -263,8 +268,8 @@ function LeaveRequestForm({ userId, remainingAnnual, remainingSick, onClose, onS
   });
   const [loading, setLoading] = useState(false);
 
-  const requestedDays = Math.ceil(
-    (new Date(form.endDate).getTime() - new Date(form.startDate).getTime()) / (1000 * 60 * 60 * 24)
+  const requestedDays = Math.round(
+    (parseLocalDate(form.endDate).getTime() - parseLocalDate(form.startDate).getTime()) / (1000 * 60 * 60 * 24)
   ) + 1;
 
   const handleSave = async () => {
