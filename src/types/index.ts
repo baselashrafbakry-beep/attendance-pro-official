@@ -21,6 +21,11 @@ export interface User {
   weeklyOffDay: number;  // 0=Sun .. 6=Sat
   weeklyOffDay2?: number; // -1 = none
   joinedDate?: string;   // ISO date
+  // ميزة النطاق الجغرافي — للمدير فقط
+  workLocationLat?: number;   // خط العرض لموقع العمل
+  workLocationLng?: number;   // خط الطول لموقع العمل
+  workLocationRadius?: number; // النطاق المسموح به بالمتر (افتراضي 100)
+  workLocationName?: string;  // اسم وصفي للموقع
 }
 
 export type DayType =

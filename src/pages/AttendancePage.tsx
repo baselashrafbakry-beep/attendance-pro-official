@@ -1,12 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../hooks/useApp';
-import { Clock, CheckCircle, LogIn, LogOut, AlertCircle, Loader2, ChevronRight } from 'lucide-react';
+import { Clock, CheckCircle, LogIn, LogOut, AlertCircle, Loader2, ChevronRight, MapPin } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { todayStr, nowTimeStr, generateId, calcMinutes } from '../utils/salary';
 import type { AttendanceRecord, DayType } from '../types';
 import { DAY_TYPE_LABELS } from '../constants';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+
+// حساب المسافة بين نقطتين بالمتر (Haversine)
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export default function AttendancePage() {
   const { user, attendance, settings, upsertAttendance, officialHolidays } = useApp();
@@ -21,13 +32,79 @@ export default function AttendancePage() {
   const today = todayStr();
   const todayRecord = attendance.find(r => r.userId === user?.id && r.date === today);
   const todayDow = new Date().getDay();
-  
+
   const isWeeklyOff = todayDow === settings.weeklyOffDay ||
     (settings.weeklyOffDay2 >= 0 && todayDow === settings.weeklyOffDay2);
   const isOfficialHoliday = officialHolidays.some(h => h.date === today);
 
   const canCheckIn = !todayRecord?.checkIn && !isWeeklyOff && !isOfficialHoliday;
   const canCheckOut = !!todayRecord?.checkIn && !todayRecord?.checkOut;
+
+  // هل للموظف موقع عمل محدد؟
+  const hasWorkLocation = !!(user?.workLocationLat && user?.workLocationLng);
+  const workRadius = user?.workLocationRadius ?? 100;
+
+  // دالة الحصول على الموقع الجغرافي مع التحقق من النطاق
+  const getLocationAndValidate = async (actionLabel: string): Promise<{ lat: number; lng: number } | null | false> => {
+    // false = خطأ يجب إيقاف العملية
+    // null = لا موقع متاح ولكن مسموح (requireGPS=false وبدون موقع عمل محدد)
+    // object = موقع تم الحصول عليه بنجاح
+
+    if (!navigator.geolocation) {
+      if (settings.requireGPS || hasWorkLocation) {
+        toast.error('المتصفح لا يدعم تحديد الموقع الجغرافي');
+        return false;
+      }
+      return null;
+    }
+
+    try {
+      const pos = await new Promise<GeolocationPosition>((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 0,
+        })
+      );
+      const userLat = pos.coords.latitude;
+      const userLng = pos.coords.longitude;
+
+      // التحقق من النطاق الجغرافي إذا كان الموظف لديه موقع عمل محدد
+      if (hasWorkLocation && user?.workLocationLat && user?.workLocationLng) {
+        const dist = haversineDistance(userLat, userLng, user.workLocationLat, user.workLocationLng);
+        if (dist > workRadius) {
+          const distStr = dist < 1000 ? `${Math.round(dist)} متر` : `${(dist / 1000).toFixed(1)} كم`;
+          const locationName = user.workLocationName ? `(${user.workLocationName})` : '';
+          toast.error(
+            `⛔ أنت خارج نطاق العمل ${locationName}\nالمسافة: ${distStr} — المسموح: ${workRadius} متر`,
+            { duration: 6000 }
+          );
+          return false;
+        }
+      }
+
+      return { lat: userLat, lng: userLng };
+    } catch (err) {
+      const geoErr = err as GeolocationPositionError;
+      console.warn(`[Attendance] Geolocation error (${actionLabel}):`, geoErr.code, geoErr.message);
+
+      // إذا كان requireGPS أو هناك موقع عمل محدد → يجب إيقاف العملية
+      if (settings.requireGPS || hasWorkLocation) {
+        if (geoErr.code === 1) {
+          toast.error(`⛔ يجب السماح بالوصول للموقع الجغرافي لـ${actionLabel}`);
+        } else if (geoErr.code === 2) {
+          toast.error('تعذّر تحديد موقعك. تأكد من تفعيل GPS وحاول مرة أخرى.');
+        } else {
+          toast.error('انتهت مهلة تحديد الموقع. حاول مرة أخرى.');
+        }
+        return false;
+      }
+
+      // requireGPS=false وبدون موقع عمل محدد → نكمل بدون موقع
+      console.warn('[Attendance] GPS optional — continuing without location');
+      return null;
+    }
+  };
 
   const handleCheckIn = async () => {
     if (!user || loading) return;
@@ -37,23 +114,11 @@ export default function AttendancePage() {
       const { lateMinutes } = calcMinutes(time, undefined, settings);
       const dayType: DayType = lateMinutes > 0 ? 'late' : 'present';
 
-      let checkInLocation;
-      try {
-        const pos = await new Promise<GeolocationPosition>((res, rej) =>
-          navigator.geolocation.getCurrentPosition(res, rej, { 
-            enableHighAccuracy: true,
-            timeout: 10000 
-          })
-        );
-        checkInLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      } catch (e) {
-        console.warn('Geolocation failed:', e);
-        if (settings.requireGPS) {
-          toast.error('يجب السماح بالوصول للموقع الجغرافي لتسجيل الحضور');
-          return;
-        }
-      }
+      // الحصول على الموقع والتحقق منه
+      const locationResult = await getLocationAndValidate('تسجيل الدخول');
+      if (locationResult === false) return; // خطأ — أوقف العملية
 
+      // التحقق من التلاعب بالوقت
       if (settings.checkTimeCheating) {
         try {
           const res = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC');
@@ -61,12 +126,12 @@ export default function AttendancePage() {
           const serverTime = new Date(data.utc_datetime);
           const localTime = new Date();
           const diffMs = Math.abs(serverTime.getTime() - localTime.getTime());
-          if (diffMs > 5 * 60 * 1000) { // 5 mins
-            toast.error('تم اكتشاف تلاعب في وقت الجهاز. يرجى ضبط الساعة للوقت الصحيح.');
+          if (diffMs > 5 * 60 * 1000) {
+            toast.error('⚠️ تم اكتشاف تلاعب في وقت الجهاز. يرجى ضبط الساعة للوقت الصحيح.');
             return;
           }
-        } catch (e) {
-          console.warn('Time check failed, skipping safety check');
+        } catch {
+          console.warn('[Attendance] Time check API failed — skipping');
         }
       }
 
@@ -76,15 +141,15 @@ export default function AttendancePage() {
         date: today,
         checkIn: time,
         checkOut: todayRecord?.checkOut,
-        checkInLocation,
+        checkInLocation: locationResult ?? undefined,
         dayType,
         lateMinutes,
-        overtimeMinutes: 0,
+        overtimeMinutes: todayRecord?.overtimeMinutes ?? 0,
         isManualEntry: false,
       };
 
       await upsertAttendance(record);
-      toast.success(`تم تسجيل الدخول الساعة ${time}${lateMinutes > 0 ? ` (تأخير ${lateMinutes} دقيقة)` : ''}`);
+      toast.success(`✅ تم تسجيل الدخول ${time}${lateMinutes > 0 ? ` (تأخير ${lateMinutes} دقيقة)` : ''}`);
     } finally {
       setLoading(false);
     }
@@ -97,32 +162,18 @@ export default function AttendancePage() {
       const time = nowTimeStr();
       const { overtimeMinutes } = calcMinutes(todayRecord.checkIn, time, settings);
 
-      let checkOutLocation;
-      try {
-        const pos = await new Promise<GeolocationPosition>((res, rej) =>
-          navigator.geolocation.getCurrentPosition(res, rej, { 
-            enableHighAccuracy: true,
-            timeout: 10000 
-          })
-        );
-        checkOutLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      } catch (e) {
-        console.warn('Geolocation failed:', e);
-        if (settings.requireGPS) {
-          toast.error('يجب السماح بالوصول للموقع الجغرافي لتسجيل الانصراف');
-          return;
-        }
-      }
+      const locationResult = await getLocationAndValidate('تسجيل الخروج');
+      if (locationResult === false) return;
 
       const record: AttendanceRecord = {
         ...todayRecord,
         checkOut: time,
-        checkOutLocation,
+        checkOutLocation: locationResult ?? undefined,
         overtimeMinutes,
       };
 
       await upsertAttendance(record);
-      toast.success(`تم تسجيل الخروج الساعة ${time}${overtimeMinutes > 0 ? ` (أوفرتايم ${overtimeMinutes} دقيقة)` : ''}`);
+      toast.success(`✅ تم تسجيل الخروج ${time}${overtimeMinutes > 0 ? ` (أوفرتايم ${overtimeMinutes} دقيقة)` : ''}`);
     } finally {
       setLoading(false);
     }
@@ -155,6 +206,21 @@ export default function AttendancePage() {
           </div>
         </div>
 
+        {/* بطاقة موقع العمل */}
+        {hasWorkLocation && (
+          <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 flex items-start gap-3">
+            <MapPin size={18} className="text-blue-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-black text-blue-700 dark:text-blue-400">
+                {user?.workLocationName || 'موقع العمل المحدد'}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                يجب أن تكون داخل نطاق <span className="font-bold text-blue-600">{workRadius} متر</span> من موقع العمل لتسجيل الحضور
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* إجازة رسمية أو أسبوعية */}
         {(isWeeklyOff || isOfficialHoliday) && (
           <div className="bg-success/10 border border-success/20 rounded-2xl p-4 flex items-center gap-3">
@@ -169,9 +235,7 @@ export default function AttendancePage() {
         )}
 
         {/* حالة اليوم */}
-        {todayRecord && (
-          <StatusCard record={todayRecord} />
-        )}
+        {todayRecord && <StatusCard record={todayRecord} />}
 
         {/* أزرار الحضور */}
         {!isWeeklyOff && !isOfficialHoliday && (

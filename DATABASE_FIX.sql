@@ -115,3 +115,20 @@ END $$;
 -- تأكيد الإصلاح
 SELECT 'قاعدة البيانات تمت إصلاحها بنجاح ✅' AS status;
 SELECT id, username, login_email, auth_user_id IS NOT NULL as has_auth FROM public.app_users ORDER BY id;
+
+-- =====================================================================
+-- Migration v6.6: إضافة حقول موقع العمل الجغرافي
+-- =====================================================================
+ALTER TABLE public.app_users
+  ADD COLUMN IF NOT EXISTS work_location_lat DOUBLE PRECISION DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS work_location_lng DOUBLE PRECISION DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS work_location_radius INTEGER DEFAULT 100,
+  ADD COLUMN IF NOT EXISTS work_location_name TEXT DEFAULT NULL;
+
+-- تحديث التعليق
+COMMENT ON COLUMN public.app_users.work_location_lat IS 'خط العرض لموقع العمل (يحدده المدير)';
+COMMENT ON COLUMN public.app_users.work_location_lng IS 'خط الطول لموقع العمل (يحدده المدير)';
+COMMENT ON COLUMN public.app_users.work_location_radius IS 'النطاق الجغرافي المسموح به بالمتر (افتراضي 100م)';
+COMMENT ON COLUMN public.app_users.work_location_name IS 'اسم وصفي لموقع العمل';
+
+SELECT 'Migration v6.6 completed ✅ — Work location fields added' AS status;
