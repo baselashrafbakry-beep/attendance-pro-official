@@ -41,20 +41,12 @@ jobs:
         run: |
           mkdir -p android/app/src/main/assets/public
           cp -r dist/. android/app/src/main/assets/public/
-          # إنشاء capacitor.config.json
-          node -e "
-            const cfg = require('./capacitor.config.ts').default || {};
-            const json = {
-              appId: 'com.attendance.salarytracker',
-              appName: 'متتبع الحضور والراتب',
-              webDir: 'dist'
-            };
-            require('fs').writeFileSync('android/app/src/main/assets/capacitor.config.json', JSON.stringify(json, null, 2));
-          " 2>/dev/null || echo '{"appId":"com.attendance.salarytracker","appName":"متتبع الحضور والراتب","webDir":"dist"}' > android/app/src/main/assets/capacitor.config.json
-          echo "✅ Assets copied: $(ls android/app/src/main/assets/public/ | wc -l) files"
-          # إنشاء cordova placeholders
+          echo '{"appId":"com.attendance.salarytracker","appName":"متتبع الحضور والراتب","webDir":"dist"}' \
+            > android/app/src/main/assets/capacitor.config.json
           echo "" > android/app/src/main/assets/public/cordova.js
-          echo "cordova.define('cordova/plugin_list', function(require, exports, module) { module.exports = []; module.exports.metadata = {}; });" > android/app/src/main/assets/public/cordova_plugins.js
+          echo 'cordova.define("cordova/plugin_list",function(require,exports,module){module.exports=[];module.exports.metadata={};});' \
+            > android/app/src/main/assets/public/cordova_plugins.js
+          echo "✅ Assets: $(ls android/app/src/main/assets/public/ | wc -l) files"
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -74,33 +66,40 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Verify Android project structure
-        run: |
-          echo "=== Project Structure ==="
-          ls android/
-          echo "=== App dir ==="
-          ls android/app/
-          echo "=== Gradle version ==="
-          cat android/gradle/wrapper/gradle-wrapper.properties | grep distributionUrl
-          echo "=== node_modules/@capacitor/android ==="
-          ls node_modules/@capacitor/android/capacitor/ | head -5
-          echo "=== Keystore ==="
-          ls -la android/app/keystore/
-
       - name: Build Release APK
+        id: gradle_build
         run: |
           cd android
+          set +e
           ./gradlew assembleRelease \
             --no-daemon \
             --stacktrace \
+            --info \
             -x lintVitalRelease \
             -x lint \
             -Pandroid.injected.signing.store.file=$(pwd)/app/keystore/release.keystore \
             -Pandroid.injected.signing.store.password=Basel1611Basel \
             -Pandroid.injected.signing.key.alias=attendance_pro \
-            -Pandroid.injected.signing.key.password=Basel1611Basel
-          echo "=== APK Output ==="
-          find app/build/outputs/apk -name "*.apk" 2>/dev/null || echo "No APK found"
+            -Pandroid.injected.signing.key.password=Basel1611Basel \
+            2>&1 | tee /tmp/gradle_build.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          set -e
+          
+          echo "=== LAST 100 LINES ==="
+          tail -100 /tmp/gradle_build.log
+          
+          echo "=== APK OUTPUT ==="
+          find app/build/outputs/apk -name "*.apk" 2>/dev/null || echo "No APK"
+          
+          exit $BUILD_EXIT
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-log
+          path: /tmp/gradle_build.log
+          retention-days: 7
 
       - name: Prepare APK
         run: |
@@ -113,7 +112,7 @@ jobs:
           fi
           cp "$APK_FILE" "release-apk/AttendancePro-v${VERSION}.apk"
           echo "APK_VERSION=v${VERSION}" >> $GITHUB_ENV
-          echo "✅ APK ready: release-apk/AttendancePro-v${VERSION}.apk"
+          echo "✅ $(ls release-apk/)"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
