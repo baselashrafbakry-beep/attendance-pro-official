@@ -62,6 +62,11 @@ function toUser(row: Record<string, unknown>): User {
     weeklyOffDay: (row.weekly_off_day as number) ?? 5,
     weeklyOffDay2: (row.weekly_off_day2 as number) ?? -1,
     joinedDate: row.joined_date as string | undefined,
+    // ميزة النطاق الجغرافي
+    workLocationLat: row.work_location_lat != null ? Number(row.work_location_lat) : undefined,
+    workLocationLng: row.work_location_lng != null ? Number(row.work_location_lng) : undefined,
+    workLocationRadius: row.work_location_radius != null ? Number(row.work_location_radius) : undefined,
+    workLocationName: (row.work_location_name as string) ?? undefined,
     // ⚠️ لا تُضف password_text أو password_hash هنا — بيانات حساسة لا تُعيدها للواجهة
   };
 }
@@ -493,6 +498,10 @@ export const db = {
     if (updates.workEndTime !== undefined) dbUpdates.work_end_time = updates.workEndTime;
     if (updates.weeklyOffDay !== undefined) dbUpdates.weekly_off_day = updates.weeklyOffDay;
     if (updates.weeklyOffDay2 !== undefined) dbUpdates.weekly_off_day2 = updates.weeklyOffDay2;
+    if (updates.workLocationLat !== undefined) dbUpdates.work_location_lat = updates.workLocationLat;
+    if (updates.workLocationLng !== undefined) dbUpdates.work_location_lng = updates.workLocationLng;
+    if (updates.workLocationRadius !== undefined) dbUpdates.work_location_radius = updates.workLocationRadius;
+    if (updates.workLocationName !== undefined) dbUpdates.work_location_name = updates.workLocationName;
     if (updates.password !== undefined) dbUpdates.password_hash = await sha256(updates.password);
 
     if (!isSupabaseConfigured()) {

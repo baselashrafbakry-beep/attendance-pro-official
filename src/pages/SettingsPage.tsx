@@ -210,15 +210,41 @@ export default function SettingsPage() {
         {/* الأمان */}
         {tab === 'security' && (
           <div className="space-y-4">
-            <SectionCard title="أمان النظام">
-              <Toggle label="فرض تحديد الموقع (GPS)" value={form.requireGPS} onChange={v => set('requireGPS', v)} />
-              <p className="text-[10px] text-muted-foreground mt-1">يمنع الموظف من تسجيل الحضور إذا لم يتم تحديد موقعه.</p>
-              
-              <div className="mt-4 pt-4 border-t border-border">
-                <Toggle label="كشف التلاعب بالوقت" value={form.checkTimeCheating} onChange={v => set('checkTimeCheating', v)} />
-                <p className="text-[10px] text-muted-foreground mt-1">يتحقق من وقت الهاتف الموظف للتأكد من عدم التلاعب بالساعة.</p>
-              </div>
-            </SectionCard>
+            {/* إعدادات الأمان المتقدمة — للمدير فقط */}
+            {user?.role === 'admin' && (
+              <SectionCard title="إعدادات الأمان (للمدير فقط)">
+                <Toggle label="فرض تحديد الموقع (GPS)" value={form.requireGPS} onChange={v => set('requireGPS', v)} />
+                <p className="text-[10px] text-muted-foreground mt-1">يمنع الموظف من تسجيل الحضور إذا لم يتم تحديد موقعه.</p>
+
+                <div className="mt-4 pt-4 border-t border-border">
+                  <Toggle label="كشف التلاعب بالوقت" value={form.checkTimeCheating} onChange={v => set('checkTimeCheating', v)} />
+                  <p className="text-[10px] text-muted-foreground mt-1">يتحقق من وقت الهاتف الموظف للتأكد من عدم التلاعب بالساعة.</p>
+                </div>
+              </SectionCard>
+            )}
+
+            {/* عرض معلومات الأمان للموظف فقط (للقراءة) */}
+            {user?.role !== 'admin' && (
+              <SectionCard title="حالة الأمان">
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between py-2 border-b border-border/50">
+                    <span className="text-muted-foreground">تحديد الموقع (GPS)</span>
+                    <span className={`font-bold ${form.requireGPS ? 'text-success' : 'text-muted-foreground'}`}>
+                      {form.requireGPS ? '✅ مفعّل' : '○ اختياري'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-muted-foreground">كشف التلاعب بالوقت</span>
+                    <span className={`font-bold ${form.checkTimeCheating ? 'text-success' : 'text-muted-foreground'}`}>
+                      {form.checkTimeCheating ? '✅ مفعّل' : '○ معطّل'}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2 pt-2 border-t border-border/50">
+                  إعدادات الأمان يتحكم بها المدير فقط
+                </p>
+              </SectionCard>
+            )}
 
             <SectionCard title="تغيير كلمة المرور">
               {showPassForm ? (
@@ -263,7 +289,7 @@ export default function SettingsPage() {
         )}
 
         {/* زر الحفظ */}
-        {tab !== 'holidays' && tab !== 'security' && (
+        {tab !== 'holidays' && (tab !== 'security' || user?.role === 'admin') && (
           <button onClick={handleSave} disabled={saving}
             className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] disabled:opacity-60 shadow-lg shadow-primary/20 transition-all">
             <Save size={18} />
