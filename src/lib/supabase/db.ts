@@ -875,26 +875,36 @@ export const db = {
   // ─── LOGIN ATTEMPTS ───────────────────────────────────────
   async logLoginAttempt(username: string, success: boolean, ip?: string): Promise<void> {
     if (!isSupabaseConfigured()) return;
-    await withTimeout(supabase.from('login_attempts').insert({
-      username,
-      success,
-      ip_address: ip ?? null,
-    }));
+    try {
+      await withTimeout(supabase.from('login_attempts').insert({
+        username,
+        success,
+        ip_address: ip ?? null,
+      }));
+    } catch {
+      // خطأ في تسجيل المحاولة - لا يوقف عملية الدخول
+    }
   },
 
   async canAttemptLogin(username: string, maxAttempts: number, lockoutMs: number): Promise<boolean> {
     if (!isSupabaseConfigured()) return true;
-    const since = new Date(Date.now() - lockoutMs).toISOString();
-    const { data, error } = await withTimeout(supabase
-      .from('login_attempts')
-      .select('attempted_at')
-      .eq('username', username)
-      .eq('success', false)
-      .gte('attempted_at', since)
-      .order('attempted_at', { ascending: false })
-      .limit(maxAttempts));
-    if (error) return true;
-    return (data ?? []).length < maxAttempts;
+    try {
+      const since = new Date(Date.now() - lockoutMs).toISOString();
+      const { data, error } = await withTimeout(supabase
+        .from('login_attempts')
+        .select('attempted_at')
+        .eq('username', username)
+        .eq('success', false)
+        .gte('attempted_at', since)
+        .order('attempted_at', { ascending: false })
+        .limit(maxAttempts));
+      // إذا فشل الاستعلام (مثلاً RLS policy) - نسمح بالدخول ونعتمد على LocalStorage
+      if (error) return true;
+      return (data ?? []).length < maxAttempts;
+    } catch {
+      // في حالة أي خطأ، نسمح بالدخول ويعتمد التحقق على LocalStorage
+      return true;
+    }
   },
 
   // ─── FULL EXPORT ─────────────────────────────────────────
