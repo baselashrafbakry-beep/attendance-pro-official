@@ -4,7 +4,7 @@ import { Settings, Save, Eye, EyeOff, Calendar, DollarSign, Clock, Shield, Plus,
 import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 import type { AppSettings, OfficialHoliday } from '../types';
-import { DAYS_ARABIC, APK_DOWNLOAD_URL } from '../constants';
+import { DAYS_ARABIC, APK_DOWNLOAD_URL, APK_FILENAME } from '../constants';
 import { generateId } from '../utils/salary';
 import { db } from '../lib/supabase/db';
 import { toast } from 'sonner';
@@ -267,14 +267,25 @@ export default function SettingsPage() {
               <span className="text-sm font-bold text-foreground">عن التطبيق</span>
               <span className="text-muted-foreground text-sm">←</span>
             </Link>
-            <a href={APK_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer" 
-               className="flex items-center justify-between bg-primary/5 border border-primary/10 rounded-2xl p-4 hover:bg-primary/10 transition-all">
+            <button
+              onClick={() => {
+                const link = document.createElement('a');
+                link.href = APK_DOWNLOAD_URL;
+                link.download = APK_FILENAME;
+                link.rel = 'noopener noreferrer';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                toast.success('⬇ جارٍ تحميل ملف APK مباشرةً…', { duration: 4000 });
+              }}
+              className="w-full flex items-center justify-between bg-primary/5 border border-primary/10 rounded-2xl p-4 hover:bg-primary/10 transition-all"
+            >
               <div className="flex items-center gap-3">
                 <Download size={18} className="text-primary" />
                 <span className="text-sm font-bold text-foreground">تحميل تطبيق الأندرويد</span>
               </div>
-              <span className="text-primary text-xs font-black">APK</span>
-            </a>
+              <span className="text-primary text-xs font-black">APK ⬇</span>
+            </button>
 
             <button
               onClick={() => {

@@ -1,11 +1,17 @@
 import { Shield, Info, Download, Smartphone } from 'lucide-react';
-import { APP_NAME, APP_VERSION, APK_DOWNLOAD_URL, DEVELOPER_NAME, DEVELOPER_PHONE } from '../constants';
+import { APP_NAME, APP_VERSION, APK_DOWNLOAD_URL, APK_FILENAME, DEVELOPER_NAME, DEVELOPER_PHONE } from '../constants';
 import { toast } from 'sonner';
 
 function handleApkDownload() {
-  // فتح صفحة التحميل في تبويب جديد
-  window.open(APK_DOWNLOAD_URL, '_blank', 'noopener,noreferrer');
-  toast.info('جارٍ فتح صفحة التحميل…', { duration: 3000 });
+  // تحميل مباشر بدون فتح أي صفحة GitHub
+  const link = document.createElement('a');
+  link.href = APK_DOWNLOAD_URL;
+  link.download = APK_FILENAME;
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  toast.success('⬇ جارٍ تحميل ملف APK مباشرةً…', { duration: 4000 });
 }
 
 export default function AboutPage() {
@@ -30,7 +36,7 @@ export default function AboutPage() {
           <p className="text-xs text-muted-foreground mt-2">نظام متكامل لإدارة الحضور والرواتب</p>
         </div>
 
-        {/* Android Download Button */}
+        {/* Android Download Button - تحميل مباشر 100% */}
         <div className="w-full space-y-2">
           <button
             onClick={handleApkDownload}
@@ -39,10 +45,10 @@ export default function AboutPage() {
             <Download size={20} />
             تحميل تطبيق الأندرويد (APK)
           </button>
-          <div className="flex items-center gap-2 bg-muted/40 border border-border rounded-xl px-4 py-2.5">
-            <Smartphone size={14} className="text-primary shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              سيتم فتح صفحة التحميل — اختر ملف APK من أحدث إصدار
+          <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-2.5">
+            <Smartphone size={14} className="text-green-500 shrink-0" />
+            <p className="text-xs text-green-600 dark:text-green-400 font-bold">
+              التحميل مباشر — بدون فتح أي صفحة خارجية ✓
             </p>
           </div>
         </div>
@@ -78,8 +84,6 @@ export default function AboutPage() {
             </a>
           </div>
         </div>
-
-
       </div>
     </div>
   );
