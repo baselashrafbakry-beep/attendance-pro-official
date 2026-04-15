@@ -74,8 +74,8 @@ export const DEPARTMENT_OPTIONS = [
   'المشتريات', 'التسويق', 'تقنية المعلومات', 'الموارد البشرية', 'العمليات', 'أخرى',
 ];
 
-// رابط التحميل المباشر لملف APK - يُحدَّث مع كل بناء GitHub Actions
-export const APK_DOWNLOAD_URL = 'https://github.com/baselashrafbakry-beep/attendance-pro-official/releases/download/v6.5.0-build.44/AttendancePro-v6.5.0.apk';
+// رابط التحميل المباشر لملف APK - يشير دائماً لأحدث إصدار تلقائياً
+export const APK_DOWNLOAD_URL = 'https://github.com/baselashrafbakry-beep/attendance-pro-official/releases/latest/download/AttendancePro-v6.5.0.apk';
 export const APK_FILENAME = 'AttendancePro-v6.5.0.apk';
 export const DEVELOPER_NAME = 'م باسل اشرف';
 export const DEVELOPER_PHONE = '01014543845';

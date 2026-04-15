@@ -269,14 +269,8 @@ export default function SettingsPage() {
             </Link>
             <button
               onClick={() => {
-                const link = document.createElement('a');
-                link.href = APK_DOWNLOAD_URL;
-                link.download = APK_FILENAME;
-                link.rel = 'noopener noreferrer';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                toast.success('⬇ جارٍ تحميل ملف APK مباشرةً…', { duration: 4000 });
+                toast.success('⬇ جارٍ تحميل ملف APK… قد يستغرق لحظات', { duration: 4000 });
+                window.location.href = APK_DOWNLOAD_URL;
               }}
               className="w-full flex items-center justify-between bg-primary/5 border border-primary/10 rounded-2xl p-4 hover:bg-primary/10 transition-all"
             >

@@ -3,15 +3,10 @@ import { APP_NAME, APP_VERSION, APK_DOWNLOAD_URL, APK_FILENAME, DEVELOPER_NAME, 
 import { toast } from 'sonner';
 
 function handleApkDownload() {
-  // تحميل مباشر بدون فتح أي صفحة GitHub
-  const link = document.createElement('a');
-  link.href = APK_DOWNLOAD_URL;
-  link.download = APK_FILENAME;
-  link.rel = 'noopener noreferrer';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  toast.success('⬇ جارٍ تحميل ملف APK مباشرةً…', { duration: 4000 });
+  // تحميل مباشر - يستخدم window.location.href لدعم redirect من GitHub
+  toast.success('⬇ جارٍ تحميل ملف APK… قد يستغرق لحظات', { duration: 4000 });
+  // استخدام window.location لضمان التحميل حتى مع الـ redirect
+  window.location.href = APK_DOWNLOAD_URL;
 }
 
 export default function AboutPage() {
