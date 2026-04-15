@@ -15,6 +15,7 @@ export default function AdminUsersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [fixingAuth, setFixingAuth] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [locationUserId, setLocationUserId] = useState<string | null>(null);
 
   const employees = users.filter(u => u.role === 'employee');
   const admins = users.filter(u => u.role === 'admin');
